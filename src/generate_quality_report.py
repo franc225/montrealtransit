@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 from collections import Counter
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import duckdb
@@ -19,6 +20,8 @@ DOCS_DIR = PROJECT_ROOT / "docs"
 ASSETS_DIR = DOCS_DIR / "assets"
 REPORT_PATH = DOCS_DIR / "index.html"
 
+MONTREAL_TIMEZONE = ZoneInfo("America/Montreal")
+
 REQUIRED_TABLES = [
     "dq_run",
     "dq_result",
@@ -28,6 +31,8 @@ REQUIRED_TABLES = [
     "fct_scheduled_stop_time",
 ]
 
+def montreal_now() -> datetime:
+    return datetime.now(MONTREAL_TIMEZONE)
 
 def table_exists(connection: duckdb.DuckDBPyConnection, table_name: str) -> bool:
     result = connection.execute(
@@ -329,7 +334,7 @@ def build_report(
     feed_start_date = format_gtfs_date(feed_info.get("feed_start_date"))
     feed_end_date = format_gtfs_date(feed_info.get("feed_end_date"))
 
-    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    generated_at = montreal_now().strftime("%Y-%m-%d %H:%M:%S America/Montreal")
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -587,7 +592,7 @@ def build_report(
                     <code>{html.escape(str(latest_run["run_id"]))}</code>
                 </div>
                 <div class="metadata-item">
-                    <span class="metadata-label">Executed at</span>
+                    <span class="metadata-label">Executed at (America/Montreal)</span>
                     {html.escape(format_datetime(latest_run["executed_at"]))}
                 </div>
                 <div class="metadata-item">

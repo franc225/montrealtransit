@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+import pytz
 from datetime import datetime
 from pathlib import Path
 
@@ -10,6 +11,7 @@ import duckdb
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = PROJECT_ROOT / "data" / "warehouse" / "montreal_transit.duckdb"
 
+MONTREAL_TIMEZONE = pytz.timezone("America/Montreal")
 
 RULES = [
     {
@@ -231,6 +233,8 @@ RULES = [
     },
 ]
 
+def montreal_now() -> datetime:
+    return datetime.now(MONTREAL_TIMEZONE).replace(tzinfo=None)
 
 def create_quality_tables(connection: duckdb.DuckDBPyConnection) -> None:
     connection.execute("""
@@ -282,7 +286,7 @@ def register_rules(connection: duckdb.DuckDBPyConnection) -> None:
 
 
 def run_checks(connection: duckdb.DuckDBPyConnection, run_id: str) -> None:
-    executed_at = datetime.now()
+    executed_at = montreal_now()
 
     connection.execute("""
         INSERT INTO dq_run

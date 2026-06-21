@@ -37,6 +37,7 @@ This project demonstrates practical skills in:
 - Validated the first GTFS snapshot successfully.
 - Generated a static HTML **Data Quality Overview** report.
 - Created data model and data quality rule documentation.
+- Automated the static GTFS refresh and report regeneration process.
 
 ### Planned
 
@@ -62,7 +63,7 @@ This project demonstrates practical skills in:
 STM static GTFS ZIP
         |
         v
-Python ingestion
+Python refresh and ingestion
         |
         v
 DuckDB raw tables
@@ -79,11 +80,18 @@ dq_rule / dq_run / dq_result
         |
         v
 Static HTML Data Quality Overview
+        |
+        v
+GitHub Pages
 ```
 
 ## Data Quality Overview
 
-The project generates a static HTML report at:
+The project generates a static HTML report published through GitHub Pages.
+
+[View the live report](https://franc225.github.io/montrealtransit/)
+
+The local HTML report is generated at:
 
 ```text
 docs/index.html
@@ -98,13 +106,6 @@ The report includes:
 - charts for rule status and severity;
 - detailed results for every quality rule;
 - dataset profile and row counts.
-
-To generate the report locally:
-
-```powershell
-python .\src\generate_quality_report.py
-Start-Process .\docs\index.html
-```
 
 ## Report preview
 
@@ -126,9 +127,7 @@ The project separates the data warehouse into three layers.
 | Analytical | Provide typed tables for reporting and validation | `dim_route`, `dim_stop`, `dim_trip`, `fct_scheduled_stop_time` |
 | Quality | Store rules, runs, and validation results | `dq_rule`, `dq_run`, `dq_result` |
 
-Detailed documentation is available in [data_quality_rules.md](docs/data_quality_rules.md).
-
-Detailed documentation is available in [data_model.md](docs/data_model.md)
+Detailed documentation is available in [data_model.md](docs/data_model.md).
 
 ### Raw tables
 
@@ -178,11 +177,7 @@ The ingestion process loads GTFS text files into raw DuckDB tables, including:
 | DQ009 | WARNING | Stop coordinates are plausible for the STM service area |
 | DQ010 | CRITICAL | Stop sequence is positive |
 
-Detailed documentation is available in:
-
-```text
-docs/data_quality_rules.md
-```
+Detailed documentation is available in [data_quality_rules.md](docs/data_quality_rules.md).
 
 ## Initial quality results
 
@@ -200,17 +195,120 @@ The controls cover:
 
 A successful validation means that no exception was detected by the current rules. It does not certify real-time data availability, punctuality, service reliability, or operational performance.
 
+## Refresh static GTFS data
+
+The project uses the current STM static GTFS feed for schedules, stops, routes, trips, service calendars, and shapes.
+
+The GTFS source is available from:
+
+- [STM Developers - GTFS scheduled data](https://www.stm.info/fr/a-propos/developpeurs)
+- [Montréal Open Data - STM planned schedules and routes](https://donnees.montreal.ca/en/dataset/stm-horaires-planifies-et-trajets-des-bus-et-du-metro)
+
+The refresh workflow downloads the current GTFS archive, validates its structure, replaces the local source files, rebuilds the DuckDB warehouse, runs the data quality checks, and regenerates the HTML report.
+
+### Refresh the complete pipeline
+
+Activate the local Python environment:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Run the full refresh and open the updated report:
+
+```powershell
+python .\src\refresh_static_gtfs.py --open-report
+```
+
+The refresh script performs the following steps:
+
+```text
+Download current STM GTFS ZIP
+        |
+        v
+Validate ZIP integrity and required GTFS files
+        |
+        v
+Archive the downloaded GTFS snapshot locally
+        |
+        v
+Replace data/raw/gtfs/current
+        |
+        v
+Run ingest_gtfs.py
+        |
+        v
+Run run_quality_checks.py
+        |
+        v
+Run generate_quality_report.py
+        |
+        v
+Update docs/index.html and report charts
+```
+
+The script updates these local files:
+
+```text
+data/raw/gtfs/current/
+data/warehouse/montreal_transit.duckdb
+docs/index.html
+docs/assets/rules_by_status.png
+docs/assets/rules_by_severity.png
+```
+
+Downloaded GTFS ZIP snapshots are stored under:
+
+```text
+data/archive/gtfs/
+```
+
+The archived GTFS files, extracted source files, and DuckDB database are intentionally excluded from Git.
+
+### Publish the refreshed report
+
+After validating the report locally, commit the updated HTML report and chart images:
+
+```powershell
+git add docs
+git commit -m "data: refresh STM GTFS snapshot and quality report"
+git push
+```
+
+GitHub Pages will publish the updated report automatically.
+
+### If the STM changes the download URL
+
+Check the STM Developers page or the Montréal Open Data dataset page for the new static GTFS link.
+
+Then run:
+
+```powershell
+python .\src\refresh_static_gtfs.py --download-url "https://new-stm-download-url/gtfs_stm.zip" --open-report
+```
+
+### Optional shapefile data
+
+The `stm_sig.zip` file is not required for the current data quality pipeline.
+
+It can be used later for geographic analysis, mapping, or route visualization.
+
 ## Project structure
 
 ```text
 montrealtransit/
 ├── data/
+│   ├── archive/                     # Ignored: downloaded GTFS snapshots
 │   ├── raw/                         # Ignored: extracted GTFS files
 │   └── warehouse/                   # Ignored: local DuckDB database
 ├── docs/
 │   ├── assets/
+│   │   ├── screenshots/
+│   │   │   ├── data-quality-overview.png
+│   │   │   └── data-quality-rule-results.png
 │   │   ├── rules_by_severity.png
 │   │   └── rules_by_status.png
+│   ├── .nojekyll
 │   ├── data_model.md
 │   ├── data_quality_rules.md
 │   └── index.html
@@ -219,6 +317,7 @@ montrealtransit/
 ├── src/
 │   ├── generate_quality_report.py
 │   ├── ingest_gtfs.py
+│   ├── refresh_static_gtfs.py
 │   └── run_quality_checks.py
 ├── .gitignore
 ├── README.md
@@ -234,7 +333,9 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 ```
 
-## Run the pipeline
+## Run the pipeline manually
+
+The recommended approach is the automated refresh script. The commands below are useful when running an existing local GTFS snapshot manually.
 
 ```powershell
 python .\src\ingest_gtfs.py
@@ -247,8 +348,6 @@ python .\src\generate_quality_report.py
 ```powershell
 Start-Process .\docs\index.html
 ```
-
-The local GTFS archives, extracted source files, and DuckDB database are intentionally excluded from Git.
 
 ## Data source
 
@@ -264,6 +363,7 @@ Static GTFS data supplied by the Société de transport de Montréal (STM).
 - [x] Implement 10 quality checks
 - [x] Generate static HTML Data Quality Overview
 - [x] Document the data model and quality rules
+- [x] Automate static GTFS refresh and report generation
 
 ### Version 2 — Service Reliability
 

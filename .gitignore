@@ -5,6 +5,7 @@ __pycache__/
 data/*.zip
 data/raw/
 data/warehouse/
+data/archive/
 
 *.duckdb
 *.wal
