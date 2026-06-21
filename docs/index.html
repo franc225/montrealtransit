@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Montréal Transit Reliability & Data Quality</title>
+    <style>
+        :root {
+            --page-background: #f5f7fa;
+            --card-background: #ffffff;
+            --text-primary: #1f2933;
+            --text-secondary: #52606d;
+            --border: #d9e2ec;
+            --pass-background: #d9f7e8;
+            --pass-text: #137333;
+            --warning-background: #fff4cc;
+            --warning-text: #8a5d00;
+            --fail-background: #ffe0e0;
+            --fail-text: #b42318;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--page-background);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        header {
+            background: #18212f;
+            color: #ffffff;
+            padding: 36px 24px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        header p {
+            margin: 8px 0 0;
+            color: #d9e2ec;
+        }
+
+        main {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        section {
+            background: var(--card-background);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 16px;
+        }
+
+        .metric {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px;
+        }
+
+        .metric-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-top: 6px;
+        }
+
+        .assessment {
+            display: inline-block;
+            font-weight: 700;
+            border-radius: 999px;
+            padding: 8px 14px;
+            margin-bottom: 12px;
+        }
+
+        .assessment-pass,
+        .status-pass {
+            background: var(--pass-background);
+            color: var(--pass-text);
+        }
+
+        .assessment-warning {
+            background: var(--warning-background);
+            color: var(--warning-text);
+        }
+
+        .assessment-fail,
+        .status-fail {
+            background: var(--fail-background);
+            color: var(--fail-text);
+        }
+
+        .status-pass,
+        .status-fail {
+            display: inline-block;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .chart-card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .chart-card img {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+        }
+
+        th,
+        td {
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            padding: 10px;
+            vertical-align: top;
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        td.number {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .metadata {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
+
+        .metadata-item {
+            border-left: 3px solid var(--border);
+            padding-left: 12px;
+        }
+
+        .metadata-label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+        }
+
+        .note {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+
+        footer {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 24px 32px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        code {
+            font-family: Consolas, "Courier New", monospace;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Montréal Transit Reliability & Data Quality</h1>
+        <p>Static GTFS quality validation report for STM operational data.</p>
+    </header>
+
+    <main>
+        <section>
+            <div class="assessment-pass">READY FOR REPORTING</div>
+            <h2>Quality overview</h2>
+
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-label">Implemented rules</div>
+                    <div class="metric-value">10</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Passed rules</div>
+                    <div class="metric-value">10</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Failed rules</div>
+                    <div class="metric-value">0</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Failed critical rules</div>
+                    <div class="metric-value">0</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Rows checked</div>
+                    <div class="metric-value">50,274,410</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Overall failure rate</div>
+                    <div class="metric-value">0.0000%</div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Latest validation run</h2>
+
+            <div class="metadata">
+                <div class="metadata-item">
+                    <span class="metadata-label">Run identifier</span>
+                    <code>cc2f4e64-82e2-46c2-8155-9a87adc200b9</code>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Executed at</span>
+                    2026-06-20 10:28:39
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">GTFS feed version</span>
+                    20260602153030_26U
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">GTFS service period</span>
+                    2026-03-23 to 2026-08-23
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Quality rule distribution</h2>
+
+            <div class="charts">
+                <div class="chart-card">
+                    <img
+                        src="assets/rules_by_status.png"
+                        alt="Bar chart showing data quality rules by status"
+                    >
+                </div>
+                <div class="chart-card">
+                    <img
+                        src="assets/rules_by_severity.png"
+                        alt="Bar chart showing implemented rules by severity"
+                    >
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Latest data quality results</h2>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rule</th>
+                            <th>Control</th>
+                            <th>Severity</th>
+                            <th>Table</th>
+                            <th>Status</th>
+                            <th>Rows checked</th>
+                            <th>Rows failed</th>
+                            <th>Failure rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+            <tr>
+                <td>DQ001</td>
+                <td>Required fields are populated in scheduled stop times</td>
+                <td>CRITICAL</td>
+                <td>fct_scheduled_stop_time</td>
+                <td><span class="status-pass">PASS</span></td>
+                <td class="number">7,151,705</td>
+                <td class="number">0</td>
+                <td class="number">0.0000%</td>
+            </tr>
+            
+
+            <tr>
+                <td>DQ002</td>
+                <td>Trip stop sequences are unique</td>
+                <td>CRITICAL</td>
+                <td>fct_scheduled_stop_time</td>
+                <td><span class="status-pass">PASS</span></td>
+                <td class="number">7,151,705</td>
+                <td class="number">0</td>
+                <td class="number">0.0000%</td>
+            </tr>
+            
+
+            <tr>
+                <td>DQ003</td>
+                <td>Scheduled stop times reference valid trips</td>
+                <td>CRITICAL</td>
+                <td>fct_scheduled_stop_time</td>
+                <td><span class="status-pass">PASS</span></td>
+                <td class="number">7,151,705</td>
+                <td class="number">0</td>
+                <td class="number">0.0000%</td>
+            </tr>
+            
+
+            <tr>
+                <td>DQ004</td>
+                <td>Scheduled stop times reference valid stops</td>
+                <td>CRITICAL</td>
+                <td>fct_scheduled_stop_time</td>
+                <td><span class="status-pass">PASS</span></td>
+                <td class="number">7,151,705</td>
+                <td class="number">0</td>
+                <td class="number">0.0000%</td>
+            </tr>
+            
+
+            <tr>
+                <td>DQ005</td>
+                <td>Scheduled times use a valid GTFS format</td>
+                <td>CRITICAL</td>
+                <td>fct_scheduled_stop_time</td>
+                <td><span class="status-pass">PASS</span></td>
+                <td class="number">7,151,705</td>
+                <td class="number">0</td>
+                <td class="number">0.0000%</td>
+            </tr>
+            
+
+            <tr>
+                <td>DQ007</td>
+                <td>Trips have at least one scheduled stop</td>
+                <td>CRITICAL</td>
+                <td>dim_trip</td>
+                <td><span class="status-pass">PASS</span></td>
+                <td class="number">203,056</td>
+                <td class="number">0</td>
+                <td class="number">0.0000%</td>
+            </tr>
+            
+
+            <tr>
+                <td>DQ010</td>
+                <td>Stop sequence is positive</td>
+                <td>CRITICAL</td>
+                <td>fct_scheduled_stop_time</td>
+                <td><span class="status-pass">PASS</span></td>
+                <td class="number">7,151,705</td>
+                <td class="number">0</td>
+                <td class="number">0.0000%</td>
+            </tr>
+            
+
+            <tr>
+                <td>DQ006</td>
+                <td>Departure is not earlier than arrival</td>
+                <td>WARNING</td>
+                <td>fct_scheduled_stop_time</td>
+                <td><span class="status-pass">PASS</span></td>
+                <td class="number">7,151,705</td>
+                <td class="number">0</td>
+                <td class="number">0.0000%</td>
+            </tr>
+            
+
+            <tr>
+                <td>DQ008</td>
+                <td>Routes have at least one planned trip</td>
+                <td>WARNING</td>
+                <td>dim_route</td>
+                <td><span class="status-pass">PASS</span></td>
+                <td class="number">231</td>
+                <td class="number">0</td>
+                <td class="number">0.0000%</td>
+            </tr>
+            
+
+            <tr>
+                <td>DQ009</td>
+                <td>Stop coordinates are plausible for the STM service area</td>
+                <td>WARNING</td>
+                <td>dim_stop</td>
+                <td><span class="status-pass">PASS</span></td>
+                <td class="number">9,188</td>
+                <td class="number">0</td>
+                <td class="number">0.0000%</td>
+            </tr>
+            
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <h2>Dataset profile</h2>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Dataset</th>
+                            <th>Source table</th>
+                            <th>Rows</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+            <tr>
+                <td>Routes</td>
+                <td><code>dim_route</code></td>
+                <td class="number">231</td>
+            </tr>
+            
+
+            <tr>
+                <td>Stops</td>
+                <td><code>dim_stop</code></td>
+                <td class="number">9,188</td>
+            </tr>
+            
+
+            <tr>
+                <td>Trips</td>
+                <td><code>dim_trip</code></td>
+                <td class="number">203,056</td>
+            </tr>
+            
+
+            <tr>
+                <td>Scheduled stop times</td>
+                <td><code>fct_scheduled_stop_time</code></td>
+                <td class="number">7,151,705</td>
+            </tr>
+            
+
+            <tr>
+                <td>Shapes</td>
+                <td><code>raw_shapes</code></td>
+                <td class="number">211,100</td>
+            </tr>
+            
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <h2>Interpretation</h2>
+
+            <p>
+                This report evaluates the latest available static GTFS snapshot
+                against the implemented quality controls. A PASS result means
+                that no exception was detected for that rule during this run.
+            </p>
+
+            <p class="note">
+                This report does not certify real-time feed availability,
+                on-time performance, service reliability, or completeness
+                beyond the controls currently implemented.
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        Generated on 2026-06-21 11:49:11 from the local DuckDB warehouse.
+    </footer>
+</body>
+</html>
