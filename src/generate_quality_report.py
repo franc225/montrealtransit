@@ -763,7 +763,16 @@ def main() -> None:
             connection,
             run_id=str(latest_run["run_id"]),
         )
-        
+
+        print(f"Project root: {PROJECT_ROOT}")
+        print(f"Database: {DB_PATH}")
+        print(
+            "Selected quality run: "
+            f"{latest_run['run_id']} | "
+            f"{latest_run['executed_at']}"
+        )
+        print(f"Report path: {REPORT_PATH}")
+
         profile = get_dataset_profile(connection)
         feed_info = get_first_row_as_dict(connection, "meta_gtfs_feed")
 
