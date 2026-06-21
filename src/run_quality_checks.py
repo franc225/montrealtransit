@@ -2,13 +2,22 @@ from __future__ import annotations
 
 import uuid
 import pytz
+import os
 from datetime import datetime
 from pathlib import Path
 
 import duckdb
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+PROJECT_ROOT = Path(
+    os.environ.get(
+        "MONTREAL_TRANSIT_PROJECT_ROOT",
+        str(DEFAULT_PROJECT_ROOT),
+    )
+).resolve()
+
 DB_PATH = PROJECT_ROOT / "data" / "warehouse" / "montreal_transit.duckdb"
 
 MONTREAL_TIMEZONE = pytz.timezone("America/Montreal")

@@ -5,7 +5,9 @@
 ![DuckDB](https://img.shields.io/badge/DuckDB-analytics-FCC624?style=flat-square&logo=duckdb&logoColor=black)
 ![GTFS](https://img.shields.io/badge/data-GTFS-0085CA?style=flat-square)
 ![Report](https://img.shields.io/badge/report-HTML%20static-5B5FC7?style=flat-square)
+[![Validate pipeline](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml/badge.svg)](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml)
 [![Live report](https://img.shields.io/badge/live%20report-GitHub%20Pages-2E8B57?style=flat-square&logo=githubpages&logoColor=white)](https://franc225.github.io/montrealtransit/)
+
 
 A data quality and operational analytics project built from Montréal STM GTFS data.
 
@@ -347,6 +349,27 @@ python .\src\generate_quality_report.py
 
 ```powershell
 Start-Process .\docs\index.html
+```
+
+## Continuous integration
+
+GitHub Actions validates the Python pipeline on every relevant push and pull request.
+
+The workflow:
+
+- installs the pinned Python dependencies;
+- compiles the Python scripts;
+- validates the refresh script command-line interface;
+- runs the ingestion, quality checks, and HTML report generation against a synthetic GTFS fixture;
+- confirms that a valid fixture passes all 10 rules;
+- confirms that an intentionally invalid stop sequence is detected by `DQ010`.
+
+The CI workflow does not download the live STM GTFS feed. This keeps validation deterministic, fast, and independent of external service availability.
+
+Run the same tests locally:
+
+```powershell
+python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
 ## Data source

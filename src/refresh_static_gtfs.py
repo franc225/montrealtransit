@@ -11,12 +11,20 @@ import urllib.request
 import webbrowser
 import zipfile
 import pytz
+import os
 from datetime import datetime
 from pathlib import Path
 
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+PROJECT_ROOT = Path(
+    os.environ.get(
+        "MONTREAL_TRANSIT_PROJECT_ROOT",
+        str(DEFAULT_PROJECT_ROOT),
+    )
+).resolve()
 
 STM_GTFS_URL = "https://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip"
 

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import html
+import pytz
+import os
 from collections import Counter
 from datetime import datetime
-from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import duckdb
@@ -14,13 +15,21 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+PROJECT_ROOT = Path(
+    os.environ.get(
+        "MONTREAL_TRANSIT_PROJECT_ROOT",
+        str(DEFAULT_PROJECT_ROOT),
+    )
+).resolve()
+
 DB_PATH = PROJECT_ROOT / "data" / "warehouse" / "montreal_transit.duckdb"
 DOCS_DIR = PROJECT_ROOT / "docs"
 ASSETS_DIR = DOCS_DIR / "assets"
 REPORT_PATH = DOCS_DIR / "index.html"
 
-MONTREAL_TIMEZONE = ZoneInfo("America/Montreal")
+MONTREAL_TIMEZONE = pytz.timezone("America/Montreal")
 
 REQUIRED_TABLES = [
     "dq_run",
