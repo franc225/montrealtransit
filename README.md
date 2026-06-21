@@ -5,8 +5,11 @@
 ![DuckDB](https://img.shields.io/badge/DuckDB-analytics-FCC624?style=flat-square&logo=duckdb&logoColor=black)
 ![GTFS](https://img.shields.io/badge/data-GTFS-0085CA?style=flat-square)
 ![Report](https://img.shields.io/badge/report-HTML%20static-5B5FC7?style=flat-square)
+[![Live report](https://img.shields.io/badge/live%20report-GitHub%20Pages-2E8B57?style=flat-square&logo=githubpages&logoColor=white)](https://franc225.github.io/montrealtransit/)
 
 A data quality and operational analytics project built from Montréal STM GTFS data.
+
+[View the live Data Quality Overview](https://franc225.github.io/montrealtransit/)
 
 ## Objective
 
