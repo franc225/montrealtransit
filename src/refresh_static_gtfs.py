@@ -12,6 +12,7 @@ import webbrowser
 import zipfile
 import pytz
 import os
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -46,13 +47,6 @@ REQUIRED_GTFS_FILES = {
     "stops.txt",
     "trips.txt",
 }
-
-PIPELINE_SCRIPTS = [
-    "ingest_gtfs.py",
-    "run_quality_checks.py",
-    "generate_quality_report.py",
-]
-
 
 def montreal_now() -> datetime:
     return datetime.now(MONTREAL_TIMEZONE)
@@ -217,7 +211,10 @@ def save_refresh_metadata(
     print(f"Refresh metadata saved: {METADATA_PATH}")
 
 
-def run_pipeline_script(script_name: str) -> None:
+def run_pipeline_script(
+    script_name: str,
+    *script_arguments: str,
+) -> None:
     script_path = PROJECT_ROOT / "src" / script_name
 
     if not script_path.exists():
@@ -231,7 +228,11 @@ def run_pipeline_script(script_name: str) -> None:
     print("=" * 70)
 
     subprocess.run(
-        [sys.executable, str(script_path)],
+        [
+            sys.executable,
+            str(script_path),
+            *script_arguments,
+        ],
         cwd=PROJECT_ROOT,
         check=True,
     )
@@ -309,13 +310,42 @@ def main() -> None:
                 f"Reason: {error}"
             ) from error
 
-    for script_name in PIPELINE_SCRIPTS:
-        run_pipeline_script(script_name)
+    quality_run_id = str(uuid.uuid4())
+
+    print()
+    print(f"Quality run ID for this refresh: {quality_run_id}")
+
+    run_pipeline_script("ingest_gtfs.py")
+
+    run_pipeline_script(
+        "run_quality_checks.py",
+        "--run-id",
+        quality_run_id,
+    )
+
+    run_pipeline_script(
+        "generate_quality_report.py",
+        "--run-id",
+        quality_run_id,
+    )
 
     if not REPORT_PATH.exists():
         raise RuntimeError(
-            "Pipeline completed but docs/index.html was not generated."
+            f"Report was not generated: {REPORT_PATH}"
         )
+
+    report_content = REPORT_PATH.read_text(encoding="utf-8")
+
+    if quality_run_id not in report_content:
+        raise RuntimeError(
+            "The generated report does not contain the quality run created "
+            f"by this refresh: {quality_run_id}"
+        )
+
+    print(
+        "Verified report quality run: "
+        f"{quality_run_id}"
+    )
 
     print()
     print("=" * 70)

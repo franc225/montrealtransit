@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import pytz
 import os
+import argparse
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -153,40 +154,35 @@ def create_severity_chart(results: list[dict[str, object]]) -> None:
     plt.close(figure)
 
 
-def get_latest_results(
+def get_results_for_run(
     connection: duckdb.DuckDBPyConnection,
+    run_id: str,
 ) -> list[dict[str, object]]:
     cursor = connection.execute(
         """
-        WITH latest_run AS (
-            SELECT run_id
-            FROM dq_run
-            ORDER BY executed_at DESC
-            LIMIT 1
-        )
         SELECT
-            result.run_id,
-            result.rule_id,
-            result.rule_name,
-            result.severity,
-            result.table_name,
-            result.status,
-            result.rows_checked,
-            result.rows_failed,
-            result.failure_rate,
-            result.executed_at
-        FROM dq_result AS result
-        INNER JOIN latest_run AS latest
-            ON result.run_id = latest.run_id
+            run_id,
+            rule_id,
+            rule_name,
+            severity,
+            table_name,
+            status,
+            rows_checked,
+            rows_failed,
+            failure_rate,
+            executed_at
+        FROM dq_result
+        WHERE run_id = ?
         ORDER BY
-            CASE result.severity
+            CASE severity
                 WHEN 'CRITICAL' THEN 1
                 WHEN 'WARNING' THEN 2
                 WHEN 'INFO' THEN 3
                 ELSE 4
             END,
-            result.rule_id
-        """
+            rule_id
+        """,
+        [run_id],
     )
 
     columns = [column[0] for column in cursor.description]
@@ -197,26 +193,40 @@ def get_latest_results(
     ]
 
 
-def get_latest_run(
+def get_validation_run(
     connection: duckdb.DuckDBPyConnection,
+    requested_run_id: str | None = None,
 ) -> dict[str, object]:
-    cursor = connection.execute(
-        """
-        SELECT
-            run_id,
-            executed_at,
-            database_path
-        FROM dq_run
-        ORDER BY executed_at DESC
-        LIMIT 1
-        """
-    )
+    if requested_run_id:
+        cursor = connection.execute(
+            """
+            SELECT
+                run_id,
+                executed_at,
+                database_path
+            FROM dq_run
+            WHERE run_id = ?
+            """,
+            [requested_run_id],
+        )
+    else:
+        cursor = connection.execute(
+            """
+            SELECT
+                run_id,
+                executed_at,
+                database_path
+            FROM dq_run
+            ORDER BY executed_at DESC
+            LIMIT 1
+            """
+        )
 
     row = cursor.fetchone()
 
     if row is None:
         raise RuntimeError(
-            "No data quality run was found. Run run_quality_checks.py first."
+            "Requested data quality run was not found."
         )
 
     columns = [column[0] for column in cursor.description]
@@ -701,6 +711,18 @@ def build_report(
 </html>
 """
 
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Generate the GTFS data quality HTML report."
+    )
+
+    parser.add_argument(
+        "--run-id",
+        default=None,
+        help="Optional quality run identifier to display in the report.",
+    )
+
+    return parser.parse_args()
 
 def main() -> None:
     if not DB_PATH.exists():
@@ -730,8 +752,18 @@ def main() -> None:
                 "Run ingest_gtfs.py and run_quality_checks.py first."
             )
 
-        latest_run = get_latest_run(connection)
-        results = get_latest_results(connection)
+        arguments = parse_arguments()
+
+        latest_run = get_validation_run(
+            connection,
+            requested_run_id=arguments.run_id,
+        )
+
+        results = get_results_for_run(
+            connection,
+            run_id=str(latest_run["run_id"]),
+        )
+        
         profile = get_dataset_profile(connection)
         feed_info = get_first_row_as_dict(connection, "meta_gtfs_feed")
 

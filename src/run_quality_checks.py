@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from ast import arguments
 import uuid
 import pytz
 import os
+import argparse
 from datetime import datetime
 from pathlib import Path
 
@@ -352,6 +354,18 @@ def run_checks(connection: duckdb.DuckDBPyConnection, run_id: str) -> None:
             f"{failure_rate:>14.4%}"
         )
 
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run GTFS data quality checks."
+    )
+
+    parser.add_argument(
+        "--run-id",
+        default=None,
+        help="Optional quality run identifier.",
+    )
+
+    return parser.parse_args()
 
 def main() -> None:
     if not DB_PATH.exists():
@@ -360,7 +374,8 @@ def main() -> None:
             "Run ingest_gtfs.py first."
         )
 
-    run_id = str(uuid.uuid4())
+    arguments = parse_arguments()
+    run_id = arguments.run_id or str(uuid.uuid4())
     print(f"Quality run ID: {run_id}")
 
     connection = duckdb.connect(str(DB_PATH))
