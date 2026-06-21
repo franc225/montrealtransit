@@ -123,11 +123,9 @@ The project separates the data warehouse into three layers.
 | Analytical | Provide typed tables for reporting and validation | `dim_route`, `dim_stop`, `dim_trip`, `fct_scheduled_stop_time` |
 | Quality | Store rules, runs, and validation results | `dq_rule`, `dq_run`, `dq_result` |
 
-Detailed documentation is available in:
+Detailed documentation is available in [data_quality_rules.md](docs/data_quality_rules.md).
 
-```text
-docs/data_model.md
-```
+Detailed documentation is available in [data_model.md](docs/data_model.md)
 
 ### Raw tables
 
