@@ -583,3 +583,6 @@ Do not implement these in the first task:
 - new orchestration platforms.
 
 Keep the first Version 2 increment small, testable, and reversible.
+
+For read-only audits and planning tasks, do not run shell commands, tests,
+or validation workflows unless the user explicitly requests them.
