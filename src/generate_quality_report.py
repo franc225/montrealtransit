@@ -33,6 +33,7 @@ REPORT_PATH = DOCS_DIR / "index.html"
 MONTREAL_TIMEZONE = pytz.timezone("America/Montreal")
 
 REQUIRED_TABLES = [
+    "dq_rule",
     "dq_run",
     "dq_result",
     "dim_route",
@@ -191,6 +192,43 @@ def get_results_for_run(
         dict(zip(columns, row))
         for row in cursor.fetchall()
     ]
+
+
+def validate_complete_results(
+    connection: duckdb.DuckDBPyConnection,
+    run_id: str,
+    results: list[dict[str, object]],
+) -> None:
+    expected_rule_ids = {
+        str(row[0])
+        for row in connection.execute(
+            "SELECT rule_id FROM dq_rule"
+        ).fetchall()
+    }
+    result_rule_ids = {str(result["rule_id"]) for result in results}
+
+    if not expected_rule_ids:
+        raise RuntimeError("No data quality rules are registered.")
+
+    if result_rule_ids != expected_rule_ids or len(results) != len(expected_rule_ids):
+        missing_rule_ids = sorted(expected_rule_ids - result_rule_ids)
+        unexpected_rule_ids = sorted(result_rule_ids - expected_rule_ids)
+        details = []
+
+        if missing_rule_ids:
+            details.append(f"missing rules: {', '.join(missing_rule_ids)}")
+
+        if unexpected_rule_ids:
+            details.append(f"unexpected rules: {', '.join(unexpected_rule_ids)}")
+
+        if len(results) != len(result_rule_ids):
+            details.append("duplicate rule results")
+
+        raise RuntimeError(
+            f"Quality run {run_id} is incomplete and cannot be reported"
+            + (f" ({'; '.join(details)})" if details else "")
+            + "."
+        )
 
 
 def get_validation_run(
@@ -762,6 +800,11 @@ def main() -> None:
         results = get_results_for_run(
             connection,
             run_id=str(latest_run["run_id"]),
+        )
+        validate_complete_results(
+            connection,
+            run_id=str(latest_run["run_id"]),
+            results=results,
         )
 
         print(f"Project root: {PROJECT_ROOT}")

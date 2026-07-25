@@ -29,7 +29,7 @@ Each rule produces a PASS or FAIL result and stores the number of rows checked, 
 | `DQ002` | CRITICAL | `fct_scheduled_stop_time` | A trip cannot contain duplicate `stop_sequence` values. |
 | `DQ003` | CRITICAL | `fct_scheduled_stop_time` | Every `trip_id` must exist in `dim_trip`. |
 | `DQ004` | CRITICAL | `fct_scheduled_stop_time` | Every `stop_id` must exist in `dim_stop`. |
-| `DQ005` | CRITICAL | `fct_scheduled_stop_time` | Arrival and departure values must be valid GTFS time values in `HH:MM:SS` format. |
+| `DQ005` | CRITICAL | `fct_scheduled_stop_time` | Arrival and departure values must use `HH:MM:SS`, with unrestricted non-negative hours and minutes and seconds from `00` to `59`. |
 | `DQ006` | WARNING | `fct_scheduled_stop_time` | When both values exist, departure time cannot be earlier than arrival time at the same stop. |
 | `DQ007` | CRITICAL | `dim_trip` | Every planned trip must have at least one scheduled stop. |
 | `DQ008` | WARNING | `dim_route` | Every route should have at least one planned trip in the current feed. |
@@ -67,7 +67,16 @@ Examples:
 24:15:00 = 12:15 AM on the following calendar day
 25:30:00 = 1:30 AM on the following calendar day
 
-For this reason, the project validates the general GTFS time pattern instead of restricting hours to a maximum of 23.
+For this reason, the project does not restrict hours to a maximum of 23. Minutes and seconds must still each fall between `00` and `59`.
+
+## Run completeness
+
+Each quality execution stores its run record and all rule results in one
+transaction. If any rule cannot be evaluated, the execution is rolled back.
+
+Report generation also verifies that the selected run contains exactly one
+result for every currently registered rule. Incomplete or duplicate result
+sets cannot produce a readiness assessment.
 
 ## Current validation result
 

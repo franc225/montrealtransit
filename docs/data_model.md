@@ -126,6 +126,10 @@ Grain: one row per quality check execution.
 | `executed_at` | Timestamp of the execution |
 | `database_path` | Local DuckDB warehouse path |
 
+The run record and its complete set of `dq_result` rows are committed
+atomically. A failed validation execution does not leave a reportable partial
+run.
+
 ### `dq_result`
 
 Grain: one row per rule per quality execution.

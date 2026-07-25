@@ -172,7 +172,7 @@ The ingestion process loads GTFS text files into raw DuckDB tables, including:
 | DQ002 | CRITICAL | Trip stop sequences are unique |
 | DQ003 | CRITICAL | Scheduled stop times reference valid trips |
 | DQ004 | CRITICAL | Scheduled stop times reference valid stops |
-| DQ005 | CRITICAL | Scheduled times use a valid GTFS format |
+| DQ005 | CRITICAL | Scheduled times use valid GTFS hours and `00`–`59` minute/second components |
 | DQ006 | WARNING | Departure is not earlier than arrival |
 | DQ007 | CRITICAL | Trips have at least one scheduled stop |
 | DQ008 | WARNING | Routes have at least one planned trip |

@@ -34,8 +34,10 @@ class PipelineIntegrationTest(unittest.TestCase):
     def create_gtfs_fixture(
         self,
         invalid_stop_sequence: bool = False,
+        invalid_time: bool = False,
     ) -> None:
         second_stop_sequence = "0" if invalid_stop_sequence else "2"
+        second_arrival_time = "08:99:00" if invalid_time else "08:10:00"
 
         files = {
             "agency.txt": (
@@ -80,14 +82,19 @@ class PipelineIntegrationTest(unittest.TestCase):
                 "trip_id,arrival_time,departure_time,stop_id,"
                 "stop_sequence\n"
                 "TRIP_001,08:00:00,08:00:00,STOP_A,1\n"
-                f"TRIP_001,08:10:00,08:10:00,STOP_B,{second_stop_sequence}\n"
+                f"TRIP_001,{second_arrival_time},08:10:00,STOP_B,"
+                f"{second_stop_sequence}\n"
             ),
         }
 
         for file_name, content in files.items():
             self.write_fixture_file(file_name, content)
 
-    def run_script(self, script_name: str) -> None:
+    def run_script(
+        self,
+        script_name: str,
+        expect_success: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
         environment = os.environ.copy()
         environment["MONTREAL_TRANSIT_PROJECT_ROOT"] = str(self.workspace)
 
@@ -103,15 +110,24 @@ class PipelineIntegrationTest(unittest.TestCase):
             check=False,
         )
 
-        self.assertEqual(
-            completed_process.returncode,
-            0,
-            msg=(
-                f"{script_name} failed.\n\n"
-                f"STDOUT:\n{completed_process.stdout}\n\n"
-                f"STDERR:\n{completed_process.stderr}"
-            ),
-        )
+        if expect_success:
+            self.assertEqual(
+                completed_process.returncode,
+                0,
+                msg=(
+                    f"{script_name} failed.\n\n"
+                    f"STDOUT:\n{completed_process.stdout}\n\n"
+                    f"STDERR:\n{completed_process.stderr}"
+                ),
+            )
+        else:
+            self.assertNotEqual(
+                completed_process.returncode,
+                0,
+                msg=f"{script_name} unexpectedly succeeded.",
+            )
+
+        return completed_process
 
     def open_database(self) -> duckdb.DuckDBPyConnection:
         database_path = (
@@ -195,6 +211,116 @@ class PipelineIntegrationTest(unittest.TestCase):
 
         finally:
             connection.close()
+
+    def test_invalid_gtfs_minute_is_detected(self) -> None:
+        self.create_gtfs_fixture(invalid_time=True)
+
+        self.run_script("ingest_gtfs.py")
+        self.run_script("run_quality_checks.py")
+
+        connection = self.open_database()
+
+        try:
+            result = connection.execute(
+                """
+                SELECT status, rows_failed
+                FROM dq_result
+                WHERE rule_id = 'DQ005'
+                """
+            ).fetchone()
+
+            self.assertEqual(result, ("FAIL", 1))
+        finally:
+            connection.close()
+
+    def test_missing_required_file_cannot_reuse_stale_raw_table(self) -> None:
+        self.create_gtfs_fixture()
+        self.run_script("ingest_gtfs.py")
+
+        (self.gtfs_directory / "stops.txt").unlink()
+
+        completed_process = self.run_script(
+            "ingest_gtfs.py",
+            expect_success=False,
+        )
+
+        self.assertIn("stops.txt: file is missing", completed_process.stderr)
+
+        connection = self.open_database()
+
+        try:
+            raw_stop_count = connection.execute(
+                "SELECT COUNT(*) FROM raw_stops"
+            ).fetchone()[0]
+            self.assertEqual(raw_stop_count, 2)
+        finally:
+            connection.close()
+
+    def test_failed_quality_execution_leaves_no_partial_run(self) -> None:
+        self.create_gtfs_fixture()
+        self.run_script("ingest_gtfs.py")
+
+        database_path = (
+            self.workspace
+            / "data"
+            / "warehouse"
+            / "montreal_transit.duckdb"
+        )
+        connection = duckdb.connect(str(database_path))
+
+        try:
+            connection.execute("DROP TABLE dim_stop")
+        finally:
+            connection.close()
+
+        self.run_script("run_quality_checks.py", expect_success=False)
+
+        connection = self.open_database()
+
+        try:
+            run_count = connection.execute(
+                "SELECT COUNT(*) FROM dq_run"
+            ).fetchone()[0]
+            result_count = connection.execute(
+                "SELECT COUNT(*) FROM dq_result"
+            ).fetchone()[0]
+
+            self.assertEqual(run_count, 0)
+            self.assertEqual(result_count, 0)
+        finally:
+            connection.close()
+
+    def test_report_rejects_an_incomplete_quality_run(self) -> None:
+        self.create_gtfs_fixture()
+
+        self.run_script("ingest_gtfs.py")
+        self.run_script("run_quality_checks.py")
+
+        database_path = (
+            self.workspace
+            / "data"
+            / "warehouse"
+            / "montreal_transit.duckdb"
+        )
+        connection = duckdb.connect(str(database_path))
+
+        try:
+            connection.execute(
+                "DELETE FROM dq_result WHERE rule_id = 'DQ010'"
+            )
+        finally:
+            connection.close()
+
+        completed_process = self.run_script(
+            "generate_quality_report.py",
+            expect_success=False,
+        )
+
+        self.assertIn(
+            "is incomplete and cannot be reported",
+            completed_process.stderr,
+        )
+        self.assertFalse((self.workspace / "docs" / "index.html").exists())
 
 
 if __name__ == "__main__":

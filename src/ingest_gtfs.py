@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import uuid
+import csv
 import os
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -35,6 +36,56 @@ GTFS_FILES = [
     "trips.txt",
 ]
 
+REQUIRED_GTFS_COLUMNS = {
+    "agency.txt": {"agency_name", "agency_url", "agency_timezone"},
+    "calendar.txt": {
+        "service_id",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+        "start_date",
+        "end_date",
+    },
+    "calendar_dates.txt": {"service_id", "date", "exception_type"},
+    "feed_info.txt": {
+        "feed_publisher_name",
+        "feed_publisher_url",
+        "feed_lang",
+    },
+    "routes.txt": {
+        "route_id",
+        "route_short_name",
+        "route_long_name",
+        "route_type",
+    },
+    "shapes.txt": {
+        "shape_id",
+        "shape_pt_lat",
+        "shape_pt_lon",
+        "shape_pt_sequence",
+    },
+    "stop_times.txt": {
+        "trip_id",
+        "arrival_time",
+        "departure_time",
+        "stop_id",
+        "stop_sequence",
+    },
+    "stops.txt": {"stop_id", "stop_name", "stop_lat", "stop_lon"},
+    "trips.txt": {
+        "route_id",
+        "service_id",
+        "trip_id",
+        "trip_headsign",
+        "direction_id",
+        "shape_id",
+    },
+}
+
 
 def sql_path(path: Path) -> str:
     """Return a DuckDB-safe absolute file path."""
@@ -45,7 +96,10 @@ def gtfs_time_to_seconds(column_name: str) -> str:
     """Convert GTFS HH:MM:SS to seconds, including times past midnight."""
     return f"""
         CASE
-            WHEN regexp_matches({column_name}, '^[0-9]+:[0-9]{{2}}:[0-9]{{2}}$')
+            WHEN regexp_matches(
+                {column_name},
+                '^[0-9]+:[0-5][0-9]:[0-5][0-9]$'
+            )
             THEN
                 try_cast(split_part({column_name}, ':', 1) AS INTEGER) * 3600
                 + try_cast(split_part({column_name}, ':', 2) AS INTEGER) * 60
@@ -53,6 +107,43 @@ def gtfs_time_to_seconds(column_name: str) -> str:
             ELSE NULL
         END
     """
+
+
+def validate_required_gtfs_files() -> None:
+    """Validate required files and columns before changing the warehouse."""
+    validation_errors = []
+
+    for filename, required_columns in REQUIRED_GTFS_COLUMNS.items():
+        file_path = GTFS_DIR / filename
+
+        if not file_path.is_file():
+            validation_errors.append(f"{filename}: file is missing")
+            continue
+
+        try:
+            with file_path.open("r", encoding="utf-8-sig", newline="") as file_handle:
+                header = next(csv.reader(file_handle), None)
+        except (OSError, UnicodeError, csv.Error) as error:
+            validation_errors.append(f"{filename}: unable to read header ({error})")
+            continue
+
+        if not header:
+            validation_errors.append(f"{filename}: header row is missing")
+            continue
+
+        available_columns = {column.strip() for column in header}
+        missing_columns = sorted(required_columns - available_columns)
+
+        if missing_columns:
+            validation_errors.append(
+                f"{filename}: missing required columns: {', '.join(missing_columns)}"
+            )
+
+    if validation_errors:
+        raise RuntimeError(
+            "GTFS source validation failed before ingestion:\n- "
+            + "\n- ".join(validation_errors)
+        )
 
 
 def load_raw_files(connection: duckdb.DuckDBPyConnection, run_id: str) -> list[str]:
@@ -74,7 +165,9 @@ def load_raw_files(connection: duckdb.DuckDBPyConnection, run_id: str) -> list[s
         file_path = GTFS_DIR / filename
 
         if not file_path.exists():
-            print(f"WARNING - File not found, skipped: {filename}")
+            table_name = f"raw_{Path(filename).stem}"
+            connection.execute(f"DROP TABLE IF EXISTS {table_name}")
+            print(f"Optional file not found; removed stale table if present: {filename}")
             continue
 
         table_name = f"raw_{file_path.stem}"
@@ -218,6 +311,8 @@ def main() -> None:
             f"GTFS folder not found: {GTFS_DIR}\n"
             "Extract gtfs_stm.zip into data/raw/gtfs/current first."
         )
+
+    validate_required_gtfs_files()
 
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 

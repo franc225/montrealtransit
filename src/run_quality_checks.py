@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from ast import arguments
 import uuid
 import pytz
 import os
@@ -299,60 +298,68 @@ def register_rules(connection: duckdb.DuckDBPyConnection) -> None:
 def run_checks(connection: duckdb.DuckDBPyConnection, run_id: str) -> None:
     executed_at = montreal_now()
 
-    connection.execute("""
-        INSERT INTO dq_run
-        VALUES (?, ?, ?)
-    """, [run_id, executed_at, str(DB_PATH)])
+    connection.execute("BEGIN TRANSACTION")
 
-    print("\nData quality results")
-    print("-" * 105)
-    print(
-        f"{'Rule':<8} {'Status':<8} {'Severity':<10} "
-        f"{'Checked':>15} {'Failed':>15} {'Failure rate':>15}"
-    )
-    print("-" * 105)
-
-    for rule in RULES:
-        rows_checked = connection.execute(
-            rule["rows_checked_sql"]
-        ).fetchone()[0]
-
-        rows_failed = connection.execute(
-            rule["rows_failed_sql"]
-        ).fetchone()[0]
-
-        rows_checked = int(rows_checked or 0)
-        rows_failed = int(rows_failed or 0)
-
-        failure_rate = (
-            rows_failed / rows_checked
-            if rows_checked > 0
-            else 0
-        )
-
-        status = "PASS" if rows_failed == 0 else "FAIL"
-
+    try:
         connection.execute("""
-            INSERT INTO dq_result
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, [
-            run_id,
-            rule["rule_id"],
-            rule["rule_name"],
-            rule["severity"],
-            rule["table_name"],
-            status,
-            rows_checked,
-            rows_failed,
-            failure_rate,
-            executed_at,
-        ])
+            INSERT INTO dq_run
+            VALUES (?, ?, ?)
+        """, [run_id, executed_at, str(DB_PATH)])
 
+        print("\nData quality results")
+        print("-" * 105)
         print(
-            f"{rule['rule_id']:<8} {status:<8} {rule['severity']:<10} "
-            f"{rows_checked:>15,} {rows_failed:>15,} "
-            f"{failure_rate:>14.4%}"
+            f"{'Rule':<8} {'Status':<8} {'Severity':<10} "
+            f"{'Checked':>15} {'Failed':>15} {'Failure rate':>15}"
         )
+        print("-" * 105)
+
+        for rule in RULES:
+            rows_checked = connection.execute(
+                rule["rows_checked_sql"]
+            ).fetchone()[0]
+
+            rows_failed = connection.execute(
+                rule["rows_failed_sql"]
+            ).fetchone()[0]
+
+            rows_checked = int(rows_checked or 0)
+            rows_failed = int(rows_failed or 0)
+
+            failure_rate = (
+                rows_failed / rows_checked
+                if rows_checked > 0
+                else 0
+            )
+
+            status = "PASS" if rows_failed == 0 else "FAIL"
+
+            connection.execute("""
+                INSERT INTO dq_result
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, [
+                run_id,
+                rule["rule_id"],
+                rule["rule_name"],
+                rule["severity"],
+                rule["table_name"],
+                status,
+                rows_checked,
+                rows_failed,
+                failure_rate,
+                executed_at,
+            ])
+
+            print(
+                f"{rule['rule_id']:<8} {status:<8} {rule['severity']:<10} "
+                f"{rows_checked:>15,} {rows_failed:>15,} "
+                f"{failure_rate:>14.4%}"
+            )
+
+        connection.execute("COMMIT")
+    except Exception:
+        connection.execute("ROLLBACK")
+        raise
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
