@@ -584,5 +584,32 @@ Do not implement these in the first task:
 
 Keep the first Version 2 increment small, testable, and reversible.
 
+## GTFS-Realtime foundation conventions
+
+The nonsecret GTFS-Realtime configuration is stored at:
+
+```text
+config/gtfs_realtime.json
+```
+
+The API key is supplied only through:
+
+```text
+STM_GTFS_REALTIME_API_KEY
+```
+
+Do not automatically load `.env` files or add a dotenv dependency. Keep
+static GTFS and GTFS-Realtime modules and storage paths separate.
+
+Real-time raw-storage paths must remain under:
+
+```text
+data/raw/gtfs_realtime/stm/
+```
+
+Configuration loading and path derivation must not create directories, make
+network requests, or expose the API key through logs, exceptions, object
+representations, metadata, documentation, or reports.
+
 For read-only audits and planning tasks, do not run shell commands, tests,
 or validation workflows unless the user explicitly requests them.
