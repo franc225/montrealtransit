@@ -8,10 +8,12 @@
     "trip_updates"
   ],
   "api_key_environment_variable": "STM_GTFS_REALTIME_API_KEY",
+  "authentication_header": "apiKey",
+  "accept_header": "application/x-protobuf",
   "request_timeout_seconds": 30,
   "maximum_response_bytes": 52428800,
   "endpoints": {
-    "vehicle_positions": "https://placeholder.invalid/vehicle-positions",
-    "trip_updates": "https://placeholder.invalid/trip-updates"
+    "vehicle_positions": "https://api.stm.info/pub/od/gtfs-rt/ic/v2/vehiclePositions",
+    "trip_updates": "https://api.stm.info/pub/od/gtfs-rt/ic/v2/tripUpdates"
   }
 }

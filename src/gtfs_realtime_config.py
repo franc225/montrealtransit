@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -17,6 +18,11 @@ SUPPORTED_SCHEMA_VERSION = 1
 SUPPORTED_PROVIDER = "stm"
 SUPPORTED_TIMEZONE = "America/Montreal"
 SUPPORTED_FEED_TYPES = frozenset({"vehicle_positions", "trip_updates"})
+SUPPORTED_API_KEY_ENVIRONMENT_VARIABLE = "STM_GTFS_REALTIME_API_KEY"
+SUPPORTED_AUTHENTICATION_HEADER = "apiKey"
+SUPPORTED_ACCEPT_HEADER = "application/x-protobuf"
+SUPPORTED_ENDPOINT_HOST = "api.stm.info"
+ENVIRONMENT_VARIABLE_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 @dataclass(frozen=True)
@@ -28,10 +34,12 @@ class GtfsRealtimeConfig:
     storage_root: Path
     allowed_feed_types: tuple[str, ...]
     api_key_environment_variable: str
+    authentication_header: str
+    accept_header: str
     request_timeout_seconds: int
     maximum_response_bytes: int
     endpoints: Mapping[str, str]
-    api_key: str = field(repr=False)
+    api_key: str | None = field(repr=False)
 
 
 @dataclass(frozen=True)
@@ -135,13 +143,38 @@ def _validate_endpoints(
     validated_endpoints = {}
 
     for feed_type, endpoint in endpoints.items():
-        if not isinstance(endpoint, str) or not endpoint.strip():
+        if not isinstance(endpoint, str) or not endpoint:
             raise ValueError(f"Endpoint for '{feed_type}' must be a nonblank URL.")
+
+        if any(character.isspace() for character in endpoint):
+            raise ValueError(f"Endpoint for '{feed_type}' must not contain whitespace.")
 
         parsed_endpoint = urlparse(endpoint)
 
         if parsed_endpoint.scheme.lower() != "https" or not parsed_endpoint.netloc:
             raise ValueError(f"Endpoint for '{feed_type}' must use HTTPS.")
+
+        if parsed_endpoint.hostname != SUPPORTED_ENDPOINT_HOST:
+            raise ValueError(
+                f"Endpoint for '{feed_type}' must use host "
+                f"'{SUPPORTED_ENDPOINT_HOST}'."
+            )
+
+        if parsed_endpoint.username is not None or parsed_endpoint.password is not None:
+            raise ValueError(
+                f"Endpoint for '{feed_type}' must not contain credentials."
+            )
+
+        if not parsed_endpoint.path or parsed_endpoint.path == "/":
+            raise ValueError(f"Endpoint for '{feed_type}' must contain a path.")
+
+        if parsed_endpoint.query:
+            raise ValueError(
+                f"Endpoint for '{feed_type}' must not contain query parameters."
+            )
+
+        if parsed_endpoint.fragment:
+            raise ValueError(f"Endpoint for '{feed_type}' must not contain a fragment.")
 
         validated_endpoints[feed_type] = endpoint
 
@@ -151,6 +184,7 @@ def _validate_endpoints(
 def load_gtfs_realtime_config(
     config_path: Path | None = None,
     environment: Mapping[str, str] | None = None,
+    validate_credentials: bool = True,
 ) -> GtfsRealtimeConfig:
     environment_values = os.environ if environment is None else environment
     project_root = resolve_project_root(environment_values)
@@ -199,16 +233,37 @@ def load_gtfs_realtime_config(
 
     if (
         not isinstance(api_key_environment_variable, str)
-        or not api_key_environment_variable.strip()
+        or not ENVIRONMENT_VARIABLE_PATTERN.fullmatch(api_key_environment_variable)
     ):
         raise ValueError(
-            "Configuration field 'api_key_environment_variable' must be nonblank."
+            "Configuration field 'api_key_environment_variable' must be a valid "
+            "environment-variable name."
         )
 
-    api_key_environment_variable = api_key_environment_variable.strip()
+    if api_key_environment_variable != SUPPORTED_API_KEY_ENVIRONMENT_VARIABLE:
+        raise ValueError(
+            "Configuration field 'api_key_environment_variable' must be "
+            f"'{SUPPORTED_API_KEY_ENVIRONMENT_VARIABLE}'."
+        )
+
+    authentication_header = config.get("authentication_header")
+
+    if authentication_header != SUPPORTED_AUTHENTICATION_HEADER:
+        raise ValueError(
+            "Configuration field 'authentication_header' must be "
+            f"'{SUPPORTED_AUTHENTICATION_HEADER}'."
+        )
+
+    accept_header = config.get("accept_header")
+
+    if accept_header != SUPPORTED_ACCEPT_HEADER:
+        raise ValueError(
+            f"Configuration field 'accept_header' must be '{SUPPORTED_ACCEPT_HEADER}'."
+        )
+
     api_key = environment_values.get(api_key_environment_variable)
 
-    if api_key is None or not api_key.strip():
+    if validate_credentials and (api_key is None or not api_key.strip()):
         raise ValueError(
             f"Required environment variable '{api_key_environment_variable}' "
             "is missing or blank."
@@ -222,6 +277,8 @@ def load_gtfs_realtime_config(
         storage_root=storage_root,
         allowed_feed_types=allowed_feed_types,
         api_key_environment_variable=api_key_environment_variable,
+        authentication_header=authentication_header,
+        accept_header=accept_header,
         request_timeout_seconds=_require_positive_integer(
             config.get("request_timeout_seconds"),
             "request_timeout_seconds",
@@ -289,12 +346,23 @@ def parse_arguments() -> argparse.Namespace:
         default=None,
         help="Optional path to the nonsecret GTFS-Realtime JSON configuration.",
     )
+    parser.add_argument(
+        "--skip-credential-validation",
+        action="store_true",
+        help=(
+            "Validate nonsecret configuration without requiring the API-key "
+            "environment variable."
+        ),
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     arguments = parse_arguments()
-    config = load_gtfs_realtime_config(arguments.config)
+    config = load_gtfs_realtime_config(
+        arguments.config,
+        validate_credentials=not arguments.skip_credential_validation,
+    )
     print(
         "GTFS-Realtime configuration is valid for "
         f"{config.provider} ({', '.join(config.allowed_feed_types)})."

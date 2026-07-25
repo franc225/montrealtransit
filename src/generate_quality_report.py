@@ -744,6 +744,12 @@ def build_report(
 
     <footer>
         Generated on {html.escape(generated_at)} from the local DuckDB warehouse.
+        <p>
+            Data source: Société de transport de Montréal (STM).
+            This is an independent and unofficial portfolio project and is not
+            affiliated with or endorsed by the STM. Data is provided as-is and
+            according to availability.
+        </p>
     </footer>
 </body>
 </html>

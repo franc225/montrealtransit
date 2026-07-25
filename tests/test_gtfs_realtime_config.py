@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
+import os
 import sys
 import tempfile
 import unittest
 import uuid
+from contextlib import redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -19,11 +23,12 @@ if str(SOURCE_DIRECTORY) not in sys.path:
 from gtfs_realtime_config import (  # noqa: E402
     derive_capture_paths,
     load_gtfs_realtime_config,
+    main,
 )
 
 
 class GtfsRealtimeConfigTest(unittest.TestCase):
-    API_KEY = "test-secret-that-must-never-appear"
+    API_KEY = "test-api-key-not-a-real-secret"
 
     def setUp(self) -> None:
         self.temporary_directory = tempfile.TemporaryDirectory()
@@ -45,13 +50,18 @@ class GtfsRealtimeConfigTest(unittest.TestCase):
                 "trip_updates",
             ],
             "api_key_environment_variable": "STM_GTFS_REALTIME_API_KEY",
+            "authentication_header": "apiKey",
+            "accept_header": "application/x-protobuf",
             "request_timeout_seconds": 30,
             "maximum_response_bytes": 52428800,
             "endpoints": {
                 "vehicle_positions": (
-                    "https://placeholder.invalid/vehicle-positions"
+                    "https://api.stm.info/pub/od/gtfs-rt/ic/v2/"
+                    "vehiclePositions"
                 ),
-                "trip_updates": "https://placeholder.invalid/trip-updates",
+                "trip_updates": (
+                    "https://api.stm.info/pub/od/gtfs-rt/ic/v2/tripUpdates"
+                ),
             },
         }
         self.write_config(self.valid_config)
@@ -93,6 +103,25 @@ class GtfsRealtimeConfigTest(unittest.TestCase):
             ("vehicle_positions", "trip_updates"),
         )
 
+    def test_official_vehicle_positions_endpoint(self) -> None:
+        config = self.load_config()
+        self.assertEqual(
+            config.endpoints["vehicle_positions"],
+            "https://api.stm.info/pub/od/gtfs-rt/ic/v2/vehiclePositions",
+        )
+
+    def test_official_trip_updates_endpoint(self) -> None:
+        config = self.load_config()
+        self.assertEqual(
+            config.endpoints["trip_updates"],
+            "https://api.stm.info/pub/od/gtfs-rt/ic/v2/tripUpdates",
+        )
+
+    def test_official_request_headers(self) -> None:
+        config = self.load_config()
+        self.assertEqual(config.authentication_header, "apiKey")
+        self.assertEqual(config.accept_header, "application/x-protobuf")
+
     def test_missing_api_key(self) -> None:
         self.environment.pop("STM_GTFS_REALTIME_API_KEY")
 
@@ -121,6 +150,33 @@ class GtfsRealtimeConfigTest(unittest.TestCase):
             invalid_config,
             "request_timeout_seconds.*positive integer",
         )
+
+    def test_cli_output_does_not_expose_api_key(self) -> None:
+        standard_output = io.StringIO()
+        arguments = ["gtfs_realtime_config.py", "--config", str(self.config_path)]
+
+        with (
+            patch.object(sys, "argv", arguments),
+            patch.dict(os.environ, self.environment, clear=True),
+            redirect_stdout(standard_output),
+        ):
+            main()
+
+        output = standard_output.getvalue()
+        self.assertNotIn(self.API_KEY, output)
+        self.assertIn("configuration is valid", output)
+        self.assertIn("No network request was made", output)
+
+    def test_dry_validation_can_skip_api_key_requirement(self) -> None:
+        environment = {
+            "MONTREAL_TRANSIT_PROJECT_ROOT": str(self.project_root),
+        }
+        config = load_gtfs_realtime_config(
+            config_path=self.config_path,
+            environment=environment,
+            validate_credentials=False,
+        )
+        self.assertIsNone(config.api_key)
 
     def test_unsupported_schema_version(self) -> None:
         invalid_config = copy.deepcopy(self.valid_config)
@@ -179,13 +235,126 @@ class GtfsRealtimeConfigTest(unittest.TestCase):
         self.assert_config_error(invalid_config, "Unknown endpoint.*alerts")
 
     def test_insecure_http_endpoint(self) -> None:
+        for feed_type in ("vehicle_positions", "trip_updates"):
+            with self.subTest(feed_type=feed_type):
+                invalid_config = copy.deepcopy(self.valid_config)
+                endpoint = invalid_config["endpoints"][feed_type]
+                invalid_config["endpoints"][feed_type] = endpoint.replace(
+                    "https://",
+                    "http://",
+                    1,
+                )
+                self.assert_config_error(
+                    invalid_config,
+                    f"{feed_type}.*must use HTTPS",
+                )
+
+    def test_endpoint_requires_official_stm_host(self) -> None:
+        for feed_type in ("vehicle_positions", "trip_updates"):
+            with self.subTest(feed_type=feed_type):
+                invalid_config = copy.deepcopy(self.valid_config)
+                endpoint = invalid_config["endpoints"][feed_type]
+                invalid_config["endpoints"][feed_type] = endpoint.replace(
+                    "api.stm.info",
+                    "example.org",
+                    1,
+                )
+                self.assert_config_error(
+                    invalid_config,
+                    f"{feed_type}.*api.stm.info",
+                )
+
+    def test_endpoint_rejects_embedded_credentials(self) -> None:
         invalid_config = copy.deepcopy(self.valid_config)
         invalid_config["endpoints"]["vehicle_positions"] = (
-            "http://placeholder.invalid/vehicle-positions"
+            "https://username:password@api.stm.info/"
+            "pub/od/gtfs-rt/ic/v2/vehiclePositions"
         )
         self.assert_config_error(
             invalid_config,
-            "vehicle_positions.*must use HTTPS",
+            "vehicle_positions.*must not contain credentials",
+        )
+
+    def test_endpoint_rejects_query_parameters(self) -> None:
+        invalid_config = copy.deepcopy(self.valid_config)
+        invalid_config["endpoints"]["vehicle_positions"] = (
+            "https://api.stm.info/pub/od/gtfs-rt/ic/v2/"
+            "vehiclePositions?apiKey=synthetic"
+        )
+        self.assert_config_error(
+            invalid_config,
+            "vehicle_positions.*must not contain query parameters",
+        )
+
+    def test_endpoint_rejects_fragments(self) -> None:
+        invalid_config = copy.deepcopy(self.valid_config)
+        invalid_config["endpoints"]["vehicle_positions"] = (
+            "https://api.stm.info/pub/od/gtfs-rt/ic/v2/"
+            "vehiclePositions#fragment"
+        )
+        self.assert_config_error(
+            invalid_config,
+            "vehicle_positions.*must not contain a fragment",
+        )
+
+    def test_endpoint_rejects_whitespace(self) -> None:
+        invalid_config = copy.deepcopy(self.valid_config)
+        invalid_config["endpoints"]["vehicle_positions"] = (
+            "https://api.stm.info/pub/od/gtfs-rt/ic/v2/vehicle Positions"
+        )
+        self.assert_config_error(
+            invalid_config,
+            "vehicle_positions.*must not contain whitespace",
+        )
+
+    def test_missing_authentication_header(self) -> None:
+        invalid_config = copy.deepcopy(self.valid_config)
+        del invalid_config["authentication_header"]
+        self.assert_config_error(invalid_config, "authentication_header.*apiKey")
+
+    def test_bearer_authentication_header_is_rejected(self) -> None:
+        invalid_config = copy.deepcopy(self.valid_config)
+        invalid_config["authentication_header"] = "Authorization"
+        self.assert_config_error(invalid_config, "authentication_header.*apiKey")
+
+    def test_missing_accept_header(self) -> None:
+        invalid_config = copy.deepcopy(self.valid_config)
+        del invalid_config["accept_header"]
+        self.assert_config_error(
+            invalid_config,
+            "accept_header.*application/x-protobuf",
+        )
+
+    def test_invalid_accept_header(self) -> None:
+        invalid_config = copy.deepcopy(self.valid_config)
+        invalid_config["accept_header"] = "application/json"
+        self.assert_config_error(
+            invalid_config,
+            "accept_header.*application/x-protobuf",
+        )
+
+    def test_endpoint_requires_nonempty_path(self) -> None:
+        invalid_config = copy.deepcopy(self.valid_config)
+        invalid_config["endpoints"]["vehicle_positions"] = "https://api.stm.info"
+        self.assert_config_error(
+            invalid_config,
+            "vehicle_positions.*must contain a path",
+        )
+
+    def test_invalid_api_key_environment_variable_name(self) -> None:
+        invalid_config = copy.deepcopy(self.valid_config)
+        invalid_config["api_key_environment_variable"] = "INVALID NAME"
+        self.assert_config_error(
+            invalid_config,
+            "api_key_environment_variable.*valid environment-variable name",
+        )
+
+    def test_api_key_environment_variable_must_use_official_name(self) -> None:
+        invalid_config = copy.deepcopy(self.valid_config)
+        invalid_config["api_key_environment_variable"] = "OTHER_API_KEY"
+        self.assert_config_error(
+            invalid_config,
+            "api_key_environment_variable.*STM_GTFS_REALTIME_API_KEY",
         )
 
     def test_absolute_storage_path(self) -> None:
@@ -278,6 +447,15 @@ class GtfsRealtimeConfigTest(unittest.TestCase):
             for path in self.project_root.rglob("*")
         )
         self.assertEqual(paths_after, paths_before)
+
+    def test_configuration_loading_makes_no_network_request(self) -> None:
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=AssertionError("Network access is not allowed."),
+        ) as mocked_urlopen:
+            self.load_config()
+
+        mocked_urlopen.assert_not_called()
 
     def test_static_warehouse_and_report_remain_unchanged(self) -> None:
         warehouse_path = (

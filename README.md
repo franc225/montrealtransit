@@ -1,9 +1,10 @@
 # Montréal Transit Reliability & Data Quality
 
-![Project status](https://img.shields.io/badge/status-V1%20complete-2E8B57?style=flat-square)
-![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=flat-square&logo=python&logoColor=white)
+![Project status](https://img.shields.io/badge/status-V2%20foundation-2E8B57?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
 ![DuckDB](https://img.shields.io/badge/DuckDB-analytics-FCC624?style=flat-square&logo=duckdb&logoColor=black)
-![GTFS](https://img.shields.io/badge/data-GTFS-0085CA?style=flat-square)
+![Static GTFS](https://img.shields.io/badge/Static%20GTFS-pipeline%20complete-0085CA?style=flat-square)
+![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-foundation-6F42C1?style=flat-square)
 ![Report](https://img.shields.io/badge/report-HTML%20static-5B5FC7?style=flat-square)
 [![Validate pipeline](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml/badge.svg)](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml)
 [![Live report](https://img.shields.io/badge/live%20report-GitHub%20Pages-2E8B57?style=flat-square&logo=githubpages&logoColor=white)](https://franc225.github.io/montrealtransit/)
@@ -40,10 +41,15 @@ This project demonstrates practical skills in:
 - Generated a static HTML **Data Quality Overview** report.
 - Created data model and data quality rule documentation.
 - Automated the static GTFS refresh and report regeneration process.
+- Established validated, nonsecret GTFS-Realtime configuration.
+- Added environment-variable API key handling with secret-safe validation.
+- Defined safe, isolated raw-storage and future capture filename conventions.
+- Added network-free GTFS-Realtime foundation tests and documentation.
 
 ### Planned
 
-- Capture GTFS-Realtime data over several days.
+- Add controlled GTFS-Realtime network capture and raw response preservation.
+- Parse preserved GTFS-Realtime protobuf messages.
 - Compare scheduled and real-time service performance.
 - Measure feed freshness and completeness.
 - Add service reliability metrics and dashboards.
@@ -199,9 +205,10 @@ A successful validation means that no exception was detected by the current rule
 
 ## GTFS-Realtime foundation
 
-The first Version 2 increment establishes validated, nonsecret configuration,
+The first Version 2 increment configures the official STM Vehicle Positions
+and Trip Updates feeds and establishes validated, nonsecret configuration,
 environment-variable API key handling, and safe local path conventions for
-future STM GTFS-Realtime capture.
+future capture.
 
 The API key is read only from:
 
@@ -212,7 +219,7 @@ STM_GTFS_REALTIME_API_KEY
 Set it for the current PowerShell session:
 
 ```powershell
-$env:STM_GTFS_REALTIME_API_KEY = "replace_with_your_api_key"
+$env:STM_GTFS_REALTIME_API_KEY = "YOUR_STM_API_KEY"
 ```
 
 Validate the local configuration without making a network request or creating
@@ -230,13 +237,19 @@ data/raw/gtfs_realtime/stm/
 └── trip_updates/YYYY/MM/DD/
 ```
 
-The configured HTTPS endpoints use non-operational `.invalid` placeholders.
 Network capture, raw payload writing, and protobuf parsing are not implemented
-yet. No delay, punctuality, or reliability metric is calculated by this
+yet. Future raw payloads will remain under the Git-ignored `data/raw/`
+directory. No delay, punctuality, or reliability metric is calculated by this
 foundation.
 
 See [GTFS-Realtime Foundation](docs/gtfs_realtime_foundation.md) for the
 configuration contract, security rules, and future filename convention.
+
+Data source: Société de transport de Montréal (STM), under the Creative
+Commons Attribution 4.0 licence. This is an independent and unofficial
+portfolio project and is not affiliated with, sponsored by, endorsed by, or
+associated with the STM. See
+[Data Source, Attribution, and Terms of Use](docs/data_source_and_terms.md).
 
 ## Refresh static GTFS data
 
@@ -340,6 +353,8 @@ It can be used later for geographic analysis, mapping, or route visualization.
 
 ```text
 montrealtransit/
+├── config/
+│   └── gtfs_realtime.json          # Nonsecret GTFS-Realtime configuration
 ├── data/
 │   ├── archive/                     # Ignored: downloaded GTFS snapshots
 │   ├── raw/                         # Ignored: extracted GTFS files
@@ -352,16 +367,23 @@ montrealtransit/
 │   │   ├── rules_by_severity.png
 │   │   └── rules_by_status.png
 │   ├── .nojekyll
+│   ├── data_source_and_terms.md
 │   ├── data_model.md
 │   ├── data_quality_rules.md
+│   ├── gtfs_realtime_foundation.md
 │   └── index.html
 ├── sql/
 │   └── quality/
 ├── src/
 │   ├── generate_quality_report.py
+│   ├── gtfs_realtime_config.py
 │   ├── ingest_gtfs.py
 │   ├── refresh_static_gtfs.py
 │   └── run_quality_checks.py
+├── tests/
+│   ├── test_gtfs_realtime_config.py
+│   └── test_pipeline.py
+├── .env.example
 ├── .gitignore
 ├── README.md
 └── requirements.txt
@@ -431,7 +453,12 @@ Static GTFS data supplied by the Société de transport de Montréal (STM).
 
 ### Version 2 — Service Reliability
 
+- [x] Establish GTFS-Realtime configuration and secret handling
+- [x] Define safe local raw-storage conventions
+- [x] Add isolated, network-free foundation tests and documentation
 - [ ] Capture GTFS-Realtime data
+- [ ] Preserve raw GTFS-Realtime responses
+- [ ] Parse GTFS-Realtime protobuf messages
 - [ ] Measure feed freshness and completeness
 - [ ] Compare scheduled and real-time service data
 - [ ] Build service reliability indicators

@@ -25,13 +25,37 @@ config/gtfs_realtime.json
 | `storage_root` | Relative local root for future raw responses |
 | `allowed_feed_types` | Supported feed categories |
 | `api_key_environment_variable` | Name of the environment variable containing the secret |
+| `authentication_header` | STM API-key request header; `apiKey` |
+| `accept_header` | Requested payload media type; `application/x-protobuf` |
 | `request_timeout_seconds` | Positive timeout reserved for controlled future capture |
 | `maximum_response_bytes` | Positive response-size limit reserved for future capture |
-| `endpoints` | HTTPS endpoint placeholders by feed type |
+| `endpoints` | Confirmed HTTPS STM endpoints by feed type |
 
-The configured URLs use the reserved `.invalid` domain and are intentionally
-non-operational. They document the configuration shape only. No code in this
-increment sends a request to them.
+## Confirmed STM API contract
+
+Both feeds use HTTP `GET`.
+
+| Feed | Endpoint |
+|---|---|
+| Vehicle Positions | `https://api.stm.info/pub/od/gtfs-rt/ic/v2/vehiclePositions` |
+| Trip Updates | `https://api.stm.info/pub/od/gtfs-rt/ic/v2/tripUpdates` |
+
+Requests use:
+
+```text
+apiKey: <value from STM_GTFS_REALTIME_API_KEY>
+Accept: application/x-protobuf
+```
+
+The API key is sent directly through the `apiKey` header. No Bearer prefix is
+used.
+
+An HTTP `200` response was observed through the STM developer portal Swagger
+test. The successful response body is binary GTFS-Realtime Protocol Buffers.
+This observation confirms the contract but does not make availability or
+payload validity assumptions.
+
+The foundation validates these values locally. It does not send requests.
 
 ## API key
 
@@ -44,13 +68,19 @@ STM_GTFS_REALTIME_API_KEY
 For the current PowerShell session:
 
 ```powershell
-$env:STM_GTFS_REALTIME_API_KEY = "replace_with_your_api_key"
+$env:STM_GTFS_REALTIME_API_KEY = "YOUR_STM_API_KEY"
 ```
 
-Validate the configuration:
+Validate the configuration and environment variable:
 
 ```powershell
 python .\src\gtfs_realtime_config.py
+```
+
+Validate only nonsecret configuration:
+
+```powershell
+python .\src\gtfs_realtime_config.py --skip-credential-validation
 ```
 
 The project does not automatically load `.env` files and does not require
@@ -63,10 +93,13 @@ The project does not automatically load `.env` files and does not require
 - Never pass the API key as a command-line argument.
 - Never print the key or include it in exceptions, object representations,
   metadata, documentation, reports, or URLs written to logs.
+- Never copy or publish a Swagger-generated curl command containing the key.
 - Missing and blank keys fail with an error that names only the required
   environment variable.
 - Configuration loading and path derivation do not create files or
   directories.
+- Endpoint URLs cannot contain credentials, query parameters, fragments, or
+  whitespace.
 
 ## Local storage convention
 
@@ -103,7 +136,6 @@ paths into an alternate workspace for isolated tests.
 
 This increment does not:
 
-- contain confirmed operational STM endpoint URLs;
 - perform HTTP requests;
 - create capture directories;
 - preserve response bytes;
@@ -114,7 +146,11 @@ This increment does not:
 
 ## Planned next step
 
-After the STM endpoint and authentication contract are confirmed, the next
-increment can add controlled network capture with timeouts, response-size
-limits, atomic raw writes, SHA-256 metadata, and secret-safe errors. Raw
-response preservation should precede protobuf parsing.
+The next increment can add controlled network capture with timeouts,
+response-size limits, atomic raw writes, SHA-256 metadata, and secret-safe
+errors. It must tolerate unavailable, incomplete, stale, empty, or invalid
+responses. Raw response preservation should precede protobuf parsing.
+
+See [Data Source, Attribution, and Terms of Use](data_source_and_terms.md) for
+STM attribution, licence information, availability limitations, and the
+unofficial-project disclaimer.
