@@ -7,6 +7,8 @@ on:
     paths:
       - "src/**"
       - "tests/**"
+      - "config/**"
+      - ".env.example"
       - "requirements.txt"
       - ".github/workflows/validate.yml"
 
@@ -14,6 +16,8 @@ on:
     paths:
       - "src/**"
       - "tests/**"
+      - "config/**"
+      - ".env.example"
       - "requirements.txt"
       - ".github/workflows/validate.yml"
 

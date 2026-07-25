@@ -197,6 +197,47 @@ The controls cover:
 
 A successful validation means that no exception was detected by the current rules. It does not certify real-time data availability, punctuality, service reliability, or operational performance.
 
+## GTFS-Realtime foundation
+
+The first Version 2 increment establishes validated, nonsecret configuration,
+environment-variable API key handling, and safe local path conventions for
+future STM GTFS-Realtime capture.
+
+The API key is read only from:
+
+```text
+STM_GTFS_REALTIME_API_KEY
+```
+
+Set it for the current PowerShell session:
+
+```powershell
+$env:STM_GTFS_REALTIME_API_KEY = "replace_with_your_api_key"
+```
+
+Validate the local configuration without making a network request or creating
+storage directories:
+
+```powershell
+python .\src\gtfs_realtime_config.py
+```
+
+Future raw captures will use separate local storage:
+
+```text
+data/raw/gtfs_realtime/stm/
+├── vehicle_positions/YYYY/MM/DD/
+└── trip_updates/YYYY/MM/DD/
+```
+
+The configured HTTPS endpoints use non-operational `.invalid` placeholders.
+Network capture, raw payload writing, and protobuf parsing are not implemented
+yet. No delay, punctuality, or reliability metric is calculated by this
+foundation.
+
+See [GTFS-Realtime Foundation](docs/gtfs_realtime_foundation.md) for the
+configuration contract, security rules, and future filename convention.
+
 ## Refresh static GTFS data
 
 The project uses the current STM static GTFS feed for schedules, stops, routes, trips, service calendars, and shapes.

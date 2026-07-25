@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "provider": "stm",
+  "timezone": "America/Montreal",
+  "storage_root": "data/raw/gtfs_realtime",
+  "allowed_feed_types": [
+    "vehicle_positions",
+    "trip_updates"
+  ],
+  "api_key_environment_variable": "STM_GTFS_REALTIME_API_KEY",
+  "request_timeout_seconds": 30,
+  "maximum_response_bytes": 52428800,
+  "endpoints": {
+    "vehicle_positions": "https://placeholder.invalid/vehicle-positions",
+    "trip_updates": "https://placeholder.invalid/trip-updates"
+  }
+}
