@@ -55,10 +55,18 @@ This project demonstrates practical skills in:
 - Enforced exact `Content-Length` integrity when the header is present.
 - Added redirect-safe transport, protocol-failure handling, and network-free
   security regression tests.
+- Added one-shot capture for both Vehicle Positions and Trip Updates with
+  network-free dry-run support.
+- Added incremental SHA-256 generation and non-overwriting rollback-based
+  payload/metadata persistence.
 
 ### Planned
 
+- Schedule recurring capture after the one-shot collector is operationally
+  validated.
 - Parse preserved GTFS-Realtime protobuf messages.
+- Load decoded GTFS-Realtime entities into dedicated DuckDB tables.
+- Match scheduled and real-time trip identifiers.
 - Compare scheduled and real-time service performance.
 - Measure feed freshness and completeness.
 - Add service reliability metrics and dashboards.
@@ -222,59 +230,25 @@ The controls cover:
 
 A successful validation means that no exception was detected by the current rules. It does not certify real-time data availability, punctuality, service reliability, or operational performance.
 
-## GTFS-Realtime foundation
+## GTFS-Realtime capture
 
-The Version 2 foundation configures the official STM Vehicle Positions and
-Trip Updates feeds and establishes validated, nonsecret configuration,
-environment-variable API key handling, and safe local capture paths.
+The implemented GTFS-Realtime foundation validates the official STM Vehicle
+Positions and Trip Updates endpoints and provides a controlled one-shot raw
+capture command.
 
-The API key is read only from:
+Current capabilities include:
 
-```text
-STM_GTFS_REALTIME_API_KEY
-```
-
-Set it for the current PowerShell session:
-
-```powershell
-$env:STM_GTFS_REALTIME_API_KEY = "YOUR_STM_API_KEY"
-```
-
-Validate the local configuration without making a network request or creating
-storage directories:
-
-```powershell
-python .\src\gtfs_realtime_config.py
-```
-
-Raw captures use separate local storage:
-
-```text
-data/raw/gtfs_realtime/stm/
-├── vehicle_positions/YYYY/MM/DD/
-└── trip_updates/YYYY/MM/DD/
-```
-
-One-shot network capture and raw payload preservation are implemented.
-Protobuf parsing is not implemented yet. Raw payloads remain under the
-Git-ignored `data/raw/` directory. No delay, punctuality, or reliability
-metric is calculated by this foundation.
-
-See [GTFS-Realtime Foundation](docs/gtfs_realtime_foundation.md) for the
-configuration contract, security rules, and filename convention.
-
-Data source: Société de transport de Montréal (STM), under the Creative
-Commons Attribution 4.0 licence. This is an independent and unofficial
-portfolio project and is not affiliated with, sponsored by, endorsed by, or
-associated with the STM. See
-[Data Source, Attribution, and Terms of Use](docs/data_source_and_terms.md).
-
-## One-shot GTFS-Realtime capture
-
-The capture command downloads exactly one selected official STM feed and
-preserves the untouched binary response plus a nonsecret JSON metadata
-sidecar. Redirects and incomplete HTTP responses are rejected. When
-`Content-Length` is present, it must exactly match the streamed byte count.
+- API-key loading only from `STM_GTFS_REALTIME_API_KEY`;
+- local configuration and path validation;
+- network-free dry runs for both supported feeds;
+- one HTTPS request per selected one-shot capture;
+- redirect rejection so credentials are never forwarded;
+- bounded streaming with maximum-response-size enforcement;
+- exact `Content-Length` integrity validation when the header is present;
+- incremental SHA-256 generation over untouched response bytes;
+- raw `.pb` persistence with nonsecret `.json` metadata;
+- atomic non-overwriting file finalization with rollback;
+- deterministic, network-free mocked tests.
 
 Supported feeds:
 
@@ -283,7 +257,8 @@ vehicle_positions
 trip_updates
 ```
 
-Set the API key securely for the current PowerShell session:
+Load the API key interactively for the current PowerShell session without
+placing its value directly in command history:
 
 ```powershell
 $secureKey = Read-Host "STM API key" -AsSecureString
@@ -296,17 +271,32 @@ finally {
 }
 ```
 
-Preview without making a request or creating files:
+Validate configuration and credentials locally:
 
 ```powershell
-python .\src\capture_gtfs_realtime.py --feed vehicle_positions --dry-run
+python .\src\gtfs_realtime_config.py
 ```
 
-Capture one response:
+Preview both feeds without making a request or creating files:
 
 ```powershell
-python .\src\capture_gtfs_realtime.py --feed vehicle_positions
-python .\src\capture_gtfs_realtime.py --feed trip_updates
+python .\src\capture_gtfs_realtime.py `
+    --feed vehicle_positions `
+    --dry-run
+
+python .\src\capture_gtfs_realtime.py `
+    --feed trip_updates `
+    --dry-run
+```
+
+Capture one response from the selected feed:
+
+```powershell
+python .\src\capture_gtfs_realtime.py `
+    --feed vehicle_positions
+
+python .\src\capture_gtfs_realtime.py `
+    --feed trip_updates
 ```
 
 Output is stored under:
@@ -323,11 +313,26 @@ YYYYMMDDTHHMMSSZ_<CAPTURE_UUID>.json
 ```
 
 Raw payloads and sidecars remain excluded from Git. Protobuf parsing is not
-implemented yet. Never paste Swagger-generated curl commands containing
-credentials.
+implemented yet.
 
-See [One-Shot GTFS-Realtime Capture](docs/gtfs_realtime_capture.md) for the
-HTTP, redirect, streaming, atomic-write, metadata, and cleanup contracts.
+This is not a recurring scheduler, production collector, decoded
+GTFS-Realtime pipeline, real-time DuckDB model, or live GitHub Pages feed.
+Freshness, completeness, trip matching, delay, punctuality, and reliability
+metrics remain future work.
+
+Never paste Swagger-generated curl commands containing the API key into
+documentation, issues, commits, or chat tools.
+
+Detailed references:
+
+- [GTFS-Realtime Foundation](docs/gtfs_realtime_foundation.md)
+- [One-Shot GTFS-Realtime Capture](docs/gtfs_realtime_capture.md)
+- [Data Source, Attribution, and Terms of Use](docs/data_source_and_terms.md)
+
+Data source: Société de transport de Montréal (STM), under the Creative
+Commons Attribution 4.0 licence. This is an independent and unofficial
+portfolio project and is not affiliated with, sponsored by, endorsed by, or
+associated with the STM.
 
 ## Refresh static GTFS data
 

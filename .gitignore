@@ -1,5 +1,10 @@
 .venv/
+
+# Local environment and secrets
 .env
+.env.*
+!.env.example
+
 __pycache__/
 *.pyc
 
