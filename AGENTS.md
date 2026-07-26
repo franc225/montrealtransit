@@ -611,5 +611,38 @@ Configuration loading and path derivation must not create directories, make
 network requests, or expose the API key through logs, exceptions, object
 representations, metadata, documentation, or reports.
 
+The confirmed STM GTFS-Realtime request contract uses:
+
+```text
+Authentication header: apiKey
+Accept header: application/x-protobuf
+```
+
+Do not add a Bearer prefix. Never copy, store, or publish Swagger-generated
+commands containing credentials. GTFS-Realtime tests must remain network-free,
+and raw responses must remain outside Git.
+
+Preserve STM attribution and the Creative Commons Attribution 4.0 licence
+notice. Do not imply STM affiliation, sponsorship, or endorsement, and do not
+use STM logos or trademarks in a way that suggests endorsement. Metro schedule
+data must not be presented as an official public metro schedule application.
+
+## GTFS-Realtime capture conventions
+
+One-shot capture must:
+
+- make exactly one HTTPS GET request for the selected configured feed;
+- reject all redirects so the `apiKey` header is never resent;
+- stream response bytes without parsing or normalization;
+- enforce `maximum_response_bytes` before and during streaming;
+- preserve payload bytes unchanged and calculate SHA-256 incrementally;
+- write payload and nonsecret metadata as one atomic logical pair;
+- refuse to overwrite existing captures and clean temporary or orphan files;
+- keep project-relative paths and exclude all raw captures from Git;
+- keep tests deterministic, synthetic, isolated, and network-free.
+
+Capture metadata must never contain credentials, request headers, cookies,
+environment dumps, absolute local paths, or complete response headers.
+
 For read-only audits and planning tasks, do not run shell commands, tests,
 or validation workflows unless the user explicitly requests them.

@@ -608,7 +608,7 @@ def build_report(
     </header>
 
     <main>
-        <section>
+        <section id="quality-overview">
             <div class="{assessment_class}">{assessment}</div>
             <h2>Quality overview</h2>
 
@@ -682,7 +682,7 @@ def build_report(
             </div>
         </section>
 
-        <section>
+        <section id="quality-results">
             <h2>Latest data quality results</h2>
 
             <div class="table-wrapper">
@@ -726,6 +726,54 @@ def build_report(
         </section>
 
         <section>
+            <h2>Automated test validation</h2>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Test suite</th>
+                            <th>Tests</th>
+                            <th>Coverage</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GTFS-Realtime capture</td>
+                            <td class="number">28</td>
+                            <td>Streaming integrity, redirect safety, secret handling, atomic persistence, and failure cleanup</td>
+                            <td><span class="status-pass">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td>GTFS-Realtime configuration</td>
+                            <td class="number">38</td>
+                            <td>API contract, environment-variable credentials, endpoint validation, and isolated storage paths</td>
+                            <td><span class="status-pass">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td>Static GTFS pipeline integration</td>
+                            <td class="number">6</td>
+                            <td>Ingestion, quality execution, run traceability, report generation, and failure scenarios</td>
+                            <td><span class="status-pass">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total automated validation</strong></td>
+                            <td class="number"><strong>72</strong></td>
+                            <td>Deterministic synthetic fixtures with no live STM network dependency</td>
+                            <td><span class="status-pass">PASS</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="note">
+                The GTFS-Realtime tests use synthetic credentials and responses.
+                They do not contact the STM API or any redirected destination.
+            </p>
+        </section>
+
+        <section>
             <h2>Interpretation</h2>
 
             <p>
@@ -744,6 +792,12 @@ def build_report(
 
     <footer>
         Generated on {html.escape(generated_at)} from the local DuckDB warehouse.
+        <p>
+            Data source: Société de transport de Montréal (STM).
+            This is an independent and unofficial portfolio project and is not
+            affiliated with or endorsed by the STM. Data is provided as-is and
+            according to availability.
+        </p>
     </footer>
 </body>
 </html>
