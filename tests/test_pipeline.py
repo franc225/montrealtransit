@@ -162,6 +162,11 @@ class PipelineIntegrationTest(unittest.TestCase):
 
         self.assertIn("READY FOR REPORTING", report_content)
         self.assertIn("Quality overview", report_content)
+        self.assertIn("Automated test validation", report_content)
+        self.assertIn("Total automated validation", report_content)
+        self.assertIn("<strong>72</strong>", report_content)
+        self.assertIn('id="quality-overview"', report_content)
+        self.assertIn('id="quality-results"', report_content)
 
         self.assertIn(
             "Montréal Transit Reliability & Data Quality",

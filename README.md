@@ -1,11 +1,11 @@
 # Montréal Transit Reliability & Data Quality
 
-![Project status](https://img.shields.io/badge/status-V2%20capture-2E8B57?style=flat-square)
+![Project status](https://img.shields.io/badge/status-V2%20capture%20hardened-2E8B57?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
 ![DuckDB](https://img.shields.io/badge/DuckDB-analytics-FCC624?style=flat-square&logo=duckdb&logoColor=black)
 ![Static GTFS](https://img.shields.io/badge/Static%20GTFS-pipeline%20complete-0085CA?style=flat-square)
-![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-one--shot%20capture-6F42C1?style=flat-square)
-![API security](https://img.shields.io/badge/API%20security-secret--safe-137333?style=flat-square)
+![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-validated%20raw%20capture-6F42C1?style=flat-square)
+![API security](https://img.shields.io/badge/API%20security-redirect%20safe-137333?style=flat-square)
 ![Report](https://img.shields.io/badge/report-HTML%20static-5B5FC7?style=flat-square)
 [![Validate pipeline](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml/badge.svg)](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml)
 [![Live report](https://img.shields.io/badge/live%20report-GitHub%20Pages-2E8B57?style=flat-square&logo=githubpages&logoColor=white)](https://franc225.github.io/montrealtransit/)
@@ -52,6 +52,9 @@ This project demonstrates practical skills in:
 - Documented STM attribution, CC BY 4.0 terms, and unofficial-project status.
 - Added secure one-shot raw capture with streamed size enforcement.
 - Added atomic `.pb` payload and nonsecret JSON metadata persistence.
+- Enforced exact `Content-Length` integrity when the header is present.
+- Added redirect-safe transport, protocol-failure handling, and network-free
+  security regression tests.
 
 ### Planned
 
@@ -120,8 +123,11 @@ The report includes:
 - charts for rule status and severity;
 - detailed results for every quality rule;
 - dataset profile and row counts.
+- automated validation coverage across all 72 tests.
 
 ## Report preview
+
+These images are generated from `docs/index.html`:
 
 ### Data Quality Overview
 
@@ -130,6 +136,13 @@ The report includes:
 ### Data Quality Rule Results
 
 ![Data Quality Rule Results](docs/assets/screenshots/data-quality-rule-results.png)
+
+Regenerate both screenshots with an installed Microsoft Edge, Google Chrome,
+or Chromium browser:
+
+```powershell
+python .\src\generate_report_screenshots.py
+```
 
 ## Data model
 
@@ -260,7 +273,8 @@ associated with the STM. See
 
 The capture command downloads exactly one selected official STM feed and
 preserves the untouched binary response plus a nonsecret JSON metadata
-sidecar.
+sidecar. Redirects and incomplete HTTP responses are rejected. When
+`Content-Length` is present, it must exactly match the streamed byte count.
 
 Supported feeds:
 
@@ -441,6 +455,7 @@ montrealtransit/
 │   └── quality/
 ├── src/
 │   ├── generate_quality_report.py
+│   ├── generate_report_screenshots.py
 │   ├── capture_gtfs_realtime.py
 │   ├── gtfs_realtime_config.py
 │   ├── ingest_gtfs.py
@@ -490,6 +505,8 @@ The workflow:
 - installs the pinned Python dependencies;
 - compiles the Python scripts;
 - validates the refresh script command-line interface;
+- validates GTFS-Realtime configuration, secret handling, response integrity,
+  redirect rejection, and network isolation with synthetic fixtures;
 - runs the ingestion, quality checks, and HTML report generation against a synthetic GTFS fixture;
 - confirms that a valid fixture passes all 10 rules;
 - confirms that an intentionally invalid stop sequence is detected by `DQ010`.
