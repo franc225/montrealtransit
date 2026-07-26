@@ -308,7 +308,7 @@ def derive_capture_paths(
         raise ValueError("Capture timestamp must include timezone information.")
 
     captured_at_utc = captured_at.astimezone(timezone.utc)
-    timestamp = captured_at_utc.strftime("%Y%m%dT%H%M%S%fZ")
+    timestamp = captured_at_utc.strftime("%Y%m%dT%H%M%SZ")
     filename_stem = f"{timestamp}_{capture_id}"
     directory = (
         config.project_root

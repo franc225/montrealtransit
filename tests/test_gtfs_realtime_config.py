@@ -399,7 +399,7 @@ class GtfsRealtimeConfigTest(unittest.TestCase):
             / "25"
         )
         expected_stem = (
-            "20260725T123456123456Z_"
+            "20260725T123456Z_"
             "12345678-1234-5678-1234-567812345678"
         )
 

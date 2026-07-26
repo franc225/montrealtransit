@@ -1,10 +1,11 @@
 # Montréal Transit Reliability & Data Quality
 
-![Project status](https://img.shields.io/badge/status-V2%20foundation-2E8B57?style=flat-square)
+![Project status](https://img.shields.io/badge/status-V2%20capture-2E8B57?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
 ![DuckDB](https://img.shields.io/badge/DuckDB-analytics-FCC624?style=flat-square&logo=duckdb&logoColor=black)
 ![Static GTFS](https://img.shields.io/badge/Static%20GTFS-pipeline%20complete-0085CA?style=flat-square)
-![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-foundation-6F42C1?style=flat-square)
+![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-one--shot%20capture-6F42C1?style=flat-square)
+![API security](https://img.shields.io/badge/API%20security-secret--safe-137333?style=flat-square)
 ![Report](https://img.shields.io/badge/report-HTML%20static-5B5FC7?style=flat-square)
 [![Validate pipeline](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml/badge.svg)](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml)
 [![Live report](https://img.shields.io/badge/live%20report-GitHub%20Pages-2E8B57?style=flat-square&logo=githubpages&logoColor=white)](https://franc225.github.io/montrealtransit/)
@@ -43,12 +44,17 @@ This project demonstrates practical skills in:
 - Automated the static GTFS refresh and report regeneration process.
 - Established validated, nonsecret GTFS-Realtime configuration.
 - Added environment-variable API key handling with secret-safe validation.
-- Defined safe, isolated raw-storage and future capture filename conventions.
-- Added network-free GTFS-Realtime foundation tests and documentation.
+- Configured the official STM Vehicle Positions and Trip Updates endpoints.
+- Validated the official `apiKey` authentication and protobuf Accept headers.
+- Added strict HTTPS, STM-host, URL credential, query, fragment, and path validation.
+- Defined safe, isolated raw-storage and capture filename conventions.
+- Added network-free GTFS-Realtime contract, secret-safety, and path tests.
+- Documented STM attribution, CC BY 4.0 terms, and unofficial-project status.
+- Added secure one-shot raw capture with streamed size enforcement.
+- Added atomic `.pb` payload and nonsecret JSON metadata persistence.
 
 ### Planned
 
-- Add controlled GTFS-Realtime network capture and raw response preservation.
 - Parse preserved GTFS-Realtime protobuf messages.
 - Compare scheduled and real-time service performance.
 - Measure feed freshness and completeness.
@@ -205,10 +211,9 @@ A successful validation means that no exception was detected by the current rule
 
 ## GTFS-Realtime foundation
 
-The first Version 2 increment configures the official STM Vehicle Positions
-and Trip Updates feeds and establishes validated, nonsecret configuration,
-environment-variable API key handling, and safe local path conventions for
-future capture.
+The Version 2 foundation configures the official STM Vehicle Positions and
+Trip Updates feeds and establishes validated, nonsecret configuration,
+environment-variable API key handling, and safe local capture paths.
 
 The API key is read only from:
 
@@ -229,7 +234,7 @@ storage directories:
 python .\src\gtfs_realtime_config.py
 ```
 
-Future raw captures will use separate local storage:
+Raw captures use separate local storage:
 
 ```text
 data/raw/gtfs_realtime/stm/
@@ -237,19 +242,78 @@ data/raw/gtfs_realtime/stm/
 └── trip_updates/YYYY/MM/DD/
 ```
 
-Network capture, raw payload writing, and protobuf parsing are not implemented
-yet. Future raw payloads will remain under the Git-ignored `data/raw/`
-directory. No delay, punctuality, or reliability metric is calculated by this
-foundation.
+One-shot network capture and raw payload preservation are implemented.
+Protobuf parsing is not implemented yet. Raw payloads remain under the
+Git-ignored `data/raw/` directory. No delay, punctuality, or reliability
+metric is calculated by this foundation.
 
 See [GTFS-Realtime Foundation](docs/gtfs_realtime_foundation.md) for the
-configuration contract, security rules, and future filename convention.
+configuration contract, security rules, and filename convention.
 
 Data source: Société de transport de Montréal (STM), under the Creative
 Commons Attribution 4.0 licence. This is an independent and unofficial
 portfolio project and is not affiliated with, sponsored by, endorsed by, or
 associated with the STM. See
 [Data Source, Attribution, and Terms of Use](docs/data_source_and_terms.md).
+
+## One-shot GTFS-Realtime capture
+
+The capture command downloads exactly one selected official STM feed and
+preserves the untouched binary response plus a nonsecret JSON metadata
+sidecar.
+
+Supported feeds:
+
+```text
+vehicle_positions
+trip_updates
+```
+
+Set the API key securely for the current PowerShell session:
+
+```powershell
+$secureKey = Read-Host "STM API key" -AsSecureString
+$keyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
+try {
+    $env:STM_GTFS_REALTIME_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($keyPointer)
+}
+finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($keyPointer)
+}
+```
+
+Preview without making a request or creating files:
+
+```powershell
+python .\src\capture_gtfs_realtime.py --feed vehicle_positions --dry-run
+```
+
+Capture one response:
+
+```powershell
+python .\src\capture_gtfs_realtime.py --feed vehicle_positions
+python .\src\capture_gtfs_realtime.py --feed trip_updates
+```
+
+Output is stored under:
+
+```text
+data/raw/gtfs_realtime/stm/<FEED_TYPE>/YYYY/MM/DD/
+```
+
+Files share a UTC timestamp and UUID:
+
+```text
+YYYYMMDDTHHMMSSZ_<CAPTURE_UUID>.pb
+YYYYMMDDTHHMMSSZ_<CAPTURE_UUID>.json
+```
+
+Raw payloads and sidecars remain excluded from Git. Protobuf parsing is not
+implemented yet. Never paste Swagger-generated curl commands containing
+credentials.
+
+See [One-Shot GTFS-Realtime Capture](docs/gtfs_realtime_capture.md) for the
+HTTP, redirect, streaming, atomic-write, metadata, and cleanup contracts.
 
 ## Refresh static GTFS data
 
@@ -371,17 +435,20 @@ montrealtransit/
 │   ├── data_model.md
 │   ├── data_quality_rules.md
 │   ├── gtfs_realtime_foundation.md
+│   ├── gtfs_realtime_capture.md
 │   └── index.html
 ├── sql/
 │   └── quality/
 ├── src/
 │   ├── generate_quality_report.py
+│   ├── capture_gtfs_realtime.py
 │   ├── gtfs_realtime_config.py
 │   ├── ingest_gtfs.py
 │   ├── refresh_static_gtfs.py
 │   └── run_quality_checks.py
 ├── tests/
 │   ├── test_gtfs_realtime_config.py
+│   ├── test_gtfs_realtime_capture.py
 │   └── test_pipeline.py
 ├── .env.example
 ├── .gitignore
@@ -454,10 +521,11 @@ Static GTFS data supplied by the Société de transport de Montréal (STM).
 ### Version 2 — Service Reliability
 
 - [x] Establish GTFS-Realtime configuration and secret handling
+- [x] Configure and validate the official STM GTFS-Realtime API contract
 - [x] Define safe local raw-storage conventions
 - [x] Add isolated, network-free foundation tests and documentation
-- [ ] Capture GTFS-Realtime data
-- [ ] Preserve raw GTFS-Realtime responses
+- [x] Capture one selected GTFS-Realtime feed securely
+- [x] Preserve raw GTFS-Realtime responses with nonsecret metadata
 - [ ] Parse GTFS-Realtime protobuf messages
 - [ ] Measure feed freshness and completeness
 - [ ] Compare scheduled and real-time service data
