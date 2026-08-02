@@ -215,12 +215,18 @@ timestamps and derived UTC values are preserved in distinct columns.
 | `gtfs_realtime_stop_time_update` | Capture, entity index, and update index |
 | `gtfs_realtime_quality_run` | One feed-quality execution |
 | `gtfs_realtime_quality_result` | One ordered metric/rule result per execution |
+| `gtfs_realtime_parser_finding` | One ordered parser finding per capture |
 
 Capture inventory stores provider/feed identity, capture and feed timestamps,
 version/incrementality, project-relative raw paths, payload size/hash, counts,
 and ingestion metadata. Entity facts retain common trip, route, direction, and
 vehicle identifiers for the future matching stage. All capture facts and
 quality rows are committed atomically.
+
+Persistence schema version 2 retains complete normalized trip and vehicle
+descriptors, numeric and readable enum representations, all parser-exposed
+Vehicle Position fields, and complete StopTimeUpdate event values. Additive
+migration leaves older incomplete rows with a null current persistence version.
 
 The future real-time scope will add:
 

@@ -675,5 +675,19 @@ tests use synthetic protobuf messages, isolated roots, and temporary DuckDB
 databases. The feed-quality layer must not perform static matching or calculate
 scheduled delay, punctuality, or service reliability.
 
+## GTFS-Realtime persistence conventions
+
+Persist every normalized parser field required for later matching. Preserve
+numeric and readable enum representations separately, original timestamp
+integers and derived UTC values separately, and original FeedEntity and
+StopTimeUpdate order.
+
+Realtime schema migrations must be additive and idempotent. Older incomplete
+rows must remain distinguishable from the current complete persistence schema;
+never perform destructive implicit reingestion. Matching must later reject or
+explicitly classify incomplete persistence versions.
+
+Persistence tests use only synthetic protobuf and temporary DuckDB warehouses.
+
 For read-only audits and planning tasks, do not run shell commands, tests,
 or validation workflows unless the user explicitly requests them.

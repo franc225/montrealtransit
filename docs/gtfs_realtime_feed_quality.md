@@ -114,3 +114,6 @@ absolute project path.
 This stage does not establish provider availability, schedule captures, match
 static identifiers, compare planned and observed service, or calculate delays,
 punctuality, and reliability. The next increment is static GTFS matching.
+
+See [GTFS-Realtime Normalized Persistence](gtfs_realtime_persistence.md) for
+the complete parser-field, schema-version, and migration contract.

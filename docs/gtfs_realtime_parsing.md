@@ -121,3 +121,6 @@ punctuality calculations, reliability indicators, or live reporting.
 Parsed captures can now proceed to the separate
 [GTFS-Realtime Feed Quality](gtfs_realtime_feed_quality.md) stage for freshness,
 completeness, and transactional DuckDB persistence.
+
+The complete parser-field mapping and schema lineage are documented in
+[GTFS-Realtime Normalized Persistence](gtfs_realtime_persistence.md).
