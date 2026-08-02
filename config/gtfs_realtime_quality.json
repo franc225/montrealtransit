@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "freshness": {
+    "expected_feed_refresh_seconds": 30,
+    "maximum_vehicle_position_age_seconds": 90,
+    "maximum_trip_update_age_seconds": 90,
+    "future_clock_skew_tolerance_seconds": 5
+  },
+  "completeness": {
+    "optional_field_thresholds_enabled": false
+  },
+  "entity_type_expectations": {
+    "vehicle_positions": "vehicle_position",
+    "trip_updates": "trip_update"
+  },
+  "sequence_checks": {
+    "enabled": true
+  },
+  "enabled_rules": ["RTF001", "RTF002", "RTF003", "RTS001", "RTS002", "RTS003"]
+}

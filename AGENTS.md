@@ -659,5 +659,21 @@ Parser tests must use synthetic in-memory protobuf messages, isolated project
 roots, and network tripwires. The parser layer must not persist decoded data,
 modify static GTFS, or calculate delay, punctuality, or reliability metrics.
 
+## GTFS-Realtime feed-quality conventions
+
+Measure historical freshness relative to capture metadata `captured_at_utc`,
+not the current wall clock. Local capture intervals are collector-operation
+metrics and must not automatically be described as provider freshness or
+availability.
+
+Exclude deleted entities from business completeness denominators. Undefined
+ratios remain null and `NOT_APPLICABLE`. Preserve original timestamp integers
+and derived timezone-aware UTC values separately.
+
+Keep pure quality calculation separate from DuckDB persistence. Feed-quality
+tests use synthetic protobuf messages, isolated roots, and temporary DuckDB
+databases. The feed-quality layer must not perform static matching or calculate
+scheduled delay, punctuality, or service reliability.
+
 For read-only audits and planning tasks, do not run shell commands, tests,
 or validation workflows unless the user explicitly requests them.
