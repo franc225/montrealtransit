@@ -18,11 +18,20 @@ from gtfs_realtime_quality import (
     assess_quality,
     load_quality_config,
 )
+from gtfs_realtime_persistence import (
+    PARSER_MODEL_SCHEMA_VERSION,
+    PERSISTENCE_SCHEMA_VERSION,
+    capture_extension_values,
+    ensure_realtime_schema,
+    entity_row,
+    stop_time_update_rows,
+    trip_update_row,
+    vehicle_position_row,
+)
 from parse_gtfs_realtime import ParserError, decode_feed, validate_capture
 
 
 DEFAULT_WAREHOUSE_RELATIVE_PATH = Path("data/warehouse/montreal_transit.duckdb")
-REALTIME_SCHEMA_VERSION = 1
 
 
 class IngestionError(RuntimeError):
@@ -40,58 +49,7 @@ class IngestionResult:
 
 
 def create_realtime_tables(connection: duckdb.DuckDBPyConnection) -> None:
-    statements = (
-        """CREATE TABLE IF NOT EXISTS gtfs_realtime_capture (
-            capture_uuid VARCHAR PRIMARY KEY, provider VARCHAR NOT NULL, feed_type VARCHAR NOT NULL,
-            captured_at_utc TIMESTAMPTZ NOT NULL, filename_timestamp_utc VARCHAR NOT NULL,
-            feed_timestamp_unix UBIGINT, feed_timestamp_utc TIMESTAMPTZ,
-            gtfs_realtime_version VARCHAR NOT NULL, incrementality INTEGER,
-            payload_relative_path VARCHAR NOT NULL, metadata_relative_path VARCHAR NOT NULL,
-            payload_size_bytes UBIGINT NOT NULL, payload_sha256 VARCHAR NOT NULL,
-            total_entity_count INTEGER NOT NULL, deleted_entity_count INTEGER NOT NULL,
-            supported_entity_count INTEGER NOT NULL, unsupported_entity_count INTEGER NOT NULL,
-            ingested_at_utc TIMESTAMPTZ NOT NULL, parser_schema_version INTEGER NOT NULL)""",
-        """CREATE TABLE IF NOT EXISTS gtfs_realtime_entity (
-            capture_uuid VARCHAR NOT NULL, entity_index INTEGER NOT NULL, entity_id VARCHAR NOT NULL,
-            entity_type VARCHAR NOT NULL, is_deleted BOOLEAN NOT NULL,
-            expected_for_feed_type BOOLEAN NOT NULL, supported BOOLEAN NOT NULL,
-            trip_id VARCHAR, route_id VARCHAR, direction_id INTEGER, vehicle_id VARCHAR,
-            PRIMARY KEY (capture_uuid, entity_index))""",
-        """CREATE TABLE IF NOT EXISTS gtfs_realtime_vehicle_position (
-            capture_uuid VARCHAR NOT NULL, entity_index INTEGER NOT NULL,
-            trip_id VARCHAR, route_id VARCHAR, direction_id INTEGER, start_date VARCHAR, start_time VARCHAR,
-            vehicle_id VARCHAR, latitude DOUBLE, longitude DOUBLE, bearing DOUBLE, speed DOUBLE,
-            current_stop_sequence INTEGER, stop_id VARCHAR, current_status INTEGER,
-            timestamp_unix UBIGINT, timestamp_utc TIMESTAMPTZ,
-            occupancy_status INTEGER, occupancy_percentage INTEGER,
-            PRIMARY KEY (capture_uuid, entity_index))""",
-        """CREATE TABLE IF NOT EXISTS gtfs_realtime_trip_update (
-            capture_uuid VARCHAR NOT NULL, entity_index INTEGER NOT NULL,
-            trip_id VARCHAR, route_id VARCHAR, direction_id INTEGER, start_date VARCHAR, start_time VARCHAR,
-            schedule_relationship INTEGER, vehicle_id VARCHAR, timestamp_unix UBIGINT,
-            timestamp_utc TIMESTAMPTZ, trip_delay_seconds INTEGER, stop_time_update_count INTEGER NOT NULL,
-            PRIMARY KEY (capture_uuid, entity_index))""",
-        """CREATE TABLE IF NOT EXISTS gtfs_realtime_stop_time_update (
-            capture_uuid VARCHAR NOT NULL, entity_index INTEGER NOT NULL, stop_time_update_index INTEGER NOT NULL,
-            stop_sequence INTEGER, stop_id VARCHAR, schedule_relationship INTEGER,
-            arrival_delay_seconds INTEGER, arrival_time_unix BIGINT, arrival_time_utc TIMESTAMPTZ,
-            departure_delay_seconds INTEGER, departure_time_unix BIGINT, departure_time_utc TIMESTAMPTZ,
-            PRIMARY KEY (capture_uuid, entity_index, stop_time_update_index))""",
-        """CREATE TABLE IF NOT EXISTS gtfs_realtime_quality_run (
-            quality_run_id VARCHAR PRIMARY KEY, capture_uuid VARCHAR NOT NULL,
-            analyzed_at_utc TIMESTAMPTZ NOT NULL, quality_config_schema_version INTEGER NOT NULL,
-            overall_status VARCHAR NOT NULL, result_count INTEGER NOT NULL,
-            finding_count INTEGER NOT NULL)""",
-        """CREATE TABLE IF NOT EXISTS gtfs_realtime_quality_result (
-            quality_run_id VARCHAR NOT NULL, result_index INTEGER NOT NULL, rule_id VARCHAR NOT NULL,
-            rule_name VARCHAR NOT NULL, category VARCHAR NOT NULL, status VARCHAR NOT NULL,
-            metric_name VARCHAR NOT NULL, numeric_value DOUBLE, numerator BIGINT, denominator BIGINT,
-            ratio DOUBLE, threshold DOUBLE, threshold_operator VARCHAR, unit VARCHAR,
-            details VARCHAR NOT NULL, enabled BOOLEAN NOT NULL, informational BOOLEAN NOT NULL,
-            PRIMARY KEY (quality_run_id, result_index))""",
-    )
-    for statement in statements:
-        connection.execute(statement)
+    ensure_realtime_schema(connection)
 
 
 def _previous_capture(connection: duckdb.DuckDBPyConnection, provider: str, feed_type: str) -> PreviousCapture | None:
@@ -104,16 +62,6 @@ def _previous_capture(connection: duckdb.DuckDBPyConnection, provider: str, feed
     return PreviousCapture(str(row[0]), row[1], row[2], str(row[3])) if row else None
 
 
-def _common_identifiers(entity: object) -> tuple[object, object, object, object]:
-    payload = entity.vehicle_position or entity.trip_update
-    trip = payload.trip if payload is not None else None
-    vehicle = payload.vehicle if payload is not None else None
-    return (
-        trip.trip_id if trip else None, trip.route_id if trip else None,
-        trip.direction_id if trip else None, vehicle.vehicle_id if vehicle else None,
-    )
-
-
 def persist_capture(
     connection: duckdb.DuckDBPyConnection,
     capture: object,
@@ -124,11 +72,16 @@ def persist_capture(
 ) -> IngestionResult:
     capture_uuid = capture.capture_uuid
     existing = connection.execute(
-        "SELECT payload_sha256 FROM gtfs_realtime_capture WHERE capture_uuid = ?", [capture_uuid]
+        "SELECT payload_sha256, persistence_schema_version FROM gtfs_realtime_capture WHERE capture_uuid = ?", [capture_uuid]
     ).fetchone()
     if existing:
         if existing[0] != capture.payload_sha256:
             raise IngestionError("Capture UUID already exists with a different payload SHA-256.")
+        if existing[1] != PERSISTENCE_SCHEMA_VERSION:
+            raise IngestionError(
+                "Capture was ingested with an older incomplete persistence schema; "
+                "implicit destructive reingestion is not supported."
+            )
         run = connection.execute(
             "SELECT quality_run_id, overall_status FROM gtfs_realtime_quality_run WHERE capture_uuid = ? ORDER BY analyzed_at_utc LIMIT 1",
             [capture_uuid],
@@ -140,7 +93,16 @@ def persist_capture(
     try:
         connection.execute("BEGIN TRANSACTION")
         connection.execute(
-            """INSERT INTO gtfs_realtime_capture VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO gtfs_realtime_capture (
+                capture_uuid, provider, feed_type, captured_at_utc, filename_timestamp_utc,
+                feed_timestamp_unix, feed_timestamp_utc, gtfs_realtime_version, incrementality,
+                payload_relative_path, metadata_relative_path, payload_size_bytes, payload_sha256,
+                total_entity_count, deleted_entity_count, supported_entity_count,
+                unsupported_entity_count, ingested_at_utc, parser_schema_version,
+                incrementality_name, vehicle_position_count, trip_update_count,
+                entities_missing_business_identifiers, validation_finding_count,
+                parser_model_schema_version, sha256_verified, persistence_schema_version
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             [capture_uuid, feed.provider, feed.feed_type, feed.captured_at_utc,
              feed.captured_at_utc.strftime("%Y%m%dT%H%M%SZ"), feed.header.timestamp,
              feed.header.timestamp_utc, feed.header.gtfs_realtime_version, feed.header.incrementality,
@@ -148,52 +110,69 @@ def persist_capture(
              capture.payload_size_bytes, capture.payload_sha256, len(feed.entities),
              feed.summary.deleted_entity_count,
              len(feed.entities) - feed.summary.unsupported_entity_count,
-             feed.summary.unsupported_entity_count, analyzed_at, REALTIME_SCHEMA_VERSION],
+             feed.summary.unsupported_entity_count, analyzed_at, PARSER_MODEL_SCHEMA_VERSION,
+             *capture_extension_values(feed)],
         )
         for entity in feed.entities:
-            trip_id, route_id, direction_id, vehicle_id = _common_identifiers(entity)
             connection.execute(
-                "INSERT INTO gtfs_realtime_entity VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [capture_uuid, entity.original_index, entity.entity_id, entity.entity_type,
-                 entity.is_deleted, entity.entity_type == expected_type,
-                 entity.entity_type != "unsupported", trip_id, route_id, direction_id, vehicle_id],
+                """INSERT INTO gtfs_realtime_entity (
+                    capture_uuid, entity_index, entity_id, entity_type, is_deleted,
+                    expected_for_feed_type, supported, trip_id, route_id, direction_id,
+                    vehicle_id, parser_model_schema_version, persistence_schema_version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                entity_row(capture_uuid, entity, expected_type),
             )
             if entity.vehicle_position is not None:
-                vehicle = entity.vehicle_position
-                trip, descriptor, position = vehicle.trip, vehicle.vehicle, vehicle.position
                 connection.execute(
-                    "INSERT INTO gtfs_realtime_vehicle_position VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    [capture_uuid, entity.original_index, trip.trip_id if trip else None,
-                     trip.route_id if trip else None, trip.direction_id if trip else None,
-                     trip.start_date if trip else None, trip.start_time if trip else None,
-                     descriptor.vehicle_id if descriptor else None,
-                     position.latitude if position else None, position.longitude if position else None,
-                     position.bearing if position else None, position.speed if position else None,
-                     vehicle.current_stop_sequence, vehicle.stop_id, vehicle.current_status,
-                     vehicle.timestamp, vehicle.timestamp_utc, vehicle.occupancy_status,
-                     vehicle.occupancy_percentage],
+                    """INSERT INTO gtfs_realtime_vehicle_position (
+                        capture_uuid, entity_index, trip_id, route_id, direction_id, start_date,
+                        start_time, vehicle_id, latitude, longitude, bearing, speed,
+                        current_stop_sequence, stop_id, current_status, timestamp_unix, timestamp_utc,
+                        occupancy_status, occupancy_percentage, trip_schedule_relationship,
+                        trip_schedule_relationship_name, vehicle_label, vehicle_license_plate,
+                        odometer, current_status_name, congestion_level, congestion_level_name,
+                        occupancy_status_name, parser_model_schema_version, persistence_schema_version
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    vehicle_position_row(capture_uuid, entity),
                 )
+                if failure_hook:
+                    failure_hook("after_vehicle_position")
             if entity.trip_update is not None:
-                update = entity.trip_update
-                trip, descriptor = update.trip, update.vehicle
                 connection.execute(
-                    "INSERT INTO gtfs_realtime_trip_update VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    [capture_uuid, entity.original_index, trip.trip_id if trip else None,
-                     trip.route_id if trip else None, trip.direction_id if trip else None,
-                     trip.start_date if trip else None, trip.start_time if trip else None,
-                     trip.schedule_relationship if trip else None,
-                     descriptor.vehicle_id if descriptor else None, update.timestamp,
-                     update.timestamp_utc, update.delay, len(update.stop_time_updates)],
+                    """INSERT INTO gtfs_realtime_trip_update (
+                        capture_uuid, entity_index, trip_id, route_id, direction_id, start_date,
+                        start_time, schedule_relationship, vehicle_id, timestamp_unix, timestamp_utc,
+                        trip_delay_seconds, stop_time_update_count, schedule_relationship_name,
+                        vehicle_label, vehicle_license_plate, parser_model_schema_version,
+                        persistence_schema_version
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    trip_update_row(capture_uuid, entity),
                 )
-                for index, stop in enumerate(update.stop_time_updates):
+                if failure_hook:
+                    failure_hook("after_trip_update")
+                for row in stop_time_update_rows(capture_uuid, entity):
                     connection.execute(
-                        "INSERT INTO gtfs_realtime_stop_time_update VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        [capture_uuid, entity.original_index, index, stop.stop_sequence, stop.stop_id,
-                         stop.schedule_relationship, stop.arrival.delay if stop.arrival else None,
-                         stop.arrival.time if stop.arrival else None, stop.arrival.time_utc if stop.arrival else None,
-                         stop.departure.delay if stop.departure else None,
-                         stop.departure.time if stop.departure else None, stop.departure.time_utc if stop.departure else None],
+                        """INSERT INTO gtfs_realtime_stop_time_update (
+                            capture_uuid, entity_index, stop_time_update_index, stop_sequence,
+                            stop_id, schedule_relationship, arrival_delay_seconds, arrival_time_unix,
+                            arrival_time_utc, departure_delay_seconds, departure_time_unix,
+                            departure_time_utc, schedule_relationship_name, arrival_uncertainty,
+                            arrival_scheduled_time_unix, arrival_scheduled_time_utc,
+                            departure_uncertainty, departure_scheduled_time_unix,
+                            departure_scheduled_time_utc, parser_model_schema_version,
+                            persistence_schema_version
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        row,
                     )
+                    if failure_hook:
+                        failure_hook("after_stop_time_update")
+        for finding_index, finding in enumerate(feed.findings):
+            connection.execute(
+                """INSERT INTO gtfs_realtime_parser_finding VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                [capture_uuid, finding_index, finding.code, finding.message,
+                 finding.entity_index, PARSER_MODEL_SCHEMA_VERSION,
+                 PERSISTENCE_SCHEMA_VERSION],
+            )
         if failure_hook:
             failure_hook("after_entities")
         connection.execute(

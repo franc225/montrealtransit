@@ -1,10 +1,10 @@
 # Montréal Transit Reliability & Data Quality
 
-![Project status](https://img.shields.io/badge/status-V2%20feed%20quality-2E8B57?style=flat-square)
+![Project status](https://img.shields.io/badge/status-V2%20persistence%20lineage-2E8B57?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
 ![DuckDB](https://img.shields.io/badge/DuckDB-analytics-FCC624?style=flat-square&logo=duckdb&logoColor=black)
 ![Static GTFS](https://img.shields.io/badge/Static%20GTFS-pipeline%20complete-0085CA?style=flat-square)
-![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-freshness%20%26%20completeness-6F42C1?style=flat-square)
+![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-normalized%20persistence-6F42C1?style=flat-square)
 ![API security](https://img.shields.io/badge/API%20security-redirect%20safe-137333?style=flat-square)
 ![Report](https://img.shields.io/badge/report-HTML%20static-5B5FC7?style=flat-square)
 [![Validate pipeline](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml/badge.svg)](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml)
@@ -62,12 +62,17 @@ This project demonstrates practical skills in:
 - Added capture-relative freshness and entity/field completeness analytics.
 - Added transactional normalized GTFS-Realtime DuckDB tables with safe
   idempotent ingestion and rollback.
+- Added complete parser-field persistence with numeric/readable enums,
+  Unix/UTC timestamps, ordering, and parser-finding lineage.
+- Added additive persistence schema v2 migration while keeping older
+  incomplete rows explicitly distinguishable.
 
 ### Planned
 
 - Schedule recurring capture after the one-shot collector is operationally
   validated.
 - Match scheduled and real-time trip identifiers.
+- Add static frequency-instance persistence and matching policy.
 - Compare scheduled and real-time service performance.
 - Add service reliability metrics and dashboards.
 - Add delay prediction or anomaly detection only after the reliability layer is complete.
@@ -352,6 +357,7 @@ Detailed references:
 - [One-Shot GTFS-Realtime Capture](docs/gtfs_realtime_capture.md)
 - [GTFS-Realtime Protocol Buffer Parsing](docs/gtfs_realtime_parsing.md)
 - [GTFS-Realtime Feed Quality](docs/gtfs_realtime_feed_quality.md)
+- [GTFS-Realtime Normalized Persistence](docs/gtfs_realtime_persistence.md)
 - [Data Source, Attribution, and Terms of Use](docs/data_source_and_terms.md)
 
 Data source: Société de transport de Montréal (STM), under the Creative
@@ -578,6 +584,7 @@ Static GTFS data supplied by the Société de transport de Montréal (STM).
 - [x] Preserve raw GTFS-Realtime responses with nonsecret metadata
 - [x] Parse GTFS-Realtime protobuf messages
 - [x] Measure feed freshness and completeness
+- [x] Persist complete normalized realtime lineage in DuckDB
 - [ ] Compare scheduled and real-time service data
 - [ ] Build service reliability indicators
 
