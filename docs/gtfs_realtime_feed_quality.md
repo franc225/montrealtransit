@@ -113,7 +113,10 @@ absolute project path.
 
 This stage does not establish provider availability, schedule captures, match
 static identifiers, compare planned and observed service, or calculate delays,
-punctuality, and reliability. The next increment is static GTFS matching.
+punctuality, and reliability. Deterministic static matching is implemented as a
+separate downstream stage.
 
 See [GTFS-Realtime Normalized Persistence](gtfs_realtime_persistence.md) for
 the complete parser-field, schema-version, and migration contract.
+The subsequent deterministic comparison stage is documented in
+[GTFS-Realtime Scheduled-Service Matching](gtfs_realtime_schedule_matching.md).

@@ -689,5 +689,21 @@ explicitly classify incomplete persistence versions.
 
 Persistence tests use only synthetic protobuf and temporary DuckDB warehouses.
 
+## GTFS-Realtime matching conventions
+
+Require complete persistence lineage before matching. Prefer deterministic
+exact matching and never choose the first ambiguous candidate. Interpret
+`start_date` as a Montréal service date and combine `calendar` with
+`calendar_dates` when resolving active service.
+
+Static GTFS times above `24:00:00` are valid; preserve original strings and
+service seconds. Use `stop_sequence` as the primary StopTimeUpdate key, and
+treat repeated `stop_id` without sequence as ambiguous.
+
+Added trips may legitimately lack static matches. Frequency instances remain
+explicitly unsupported until static frequency persistence is designed. The
+matching layer must not assign punctuality or reliability classifications.
+Tests use only synthetic static and realtime data in temporary warehouses.
+
 For read-only audits and planning tasks, do not run shell commands, tests,
 or validation workflows unless the user explicitly requests them.
