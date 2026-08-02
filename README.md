@@ -64,7 +64,6 @@ This project demonstrates practical skills in:
 
 - Schedule recurring capture after the one-shot collector is operationally
   validated.
-- Parse preserved GTFS-Realtime protobuf messages.
 - Load decoded GTFS-Realtime entities into dedicated DuckDB tables.
 - Match scheduled and real-time trip identifiers.
 - Compare scheduled and real-time service performance.
@@ -131,7 +130,8 @@ The report includes:
 - charts for rule status and severity;
 - detailed results for every quality rule;
 - dataset profile and row counts.
-- automated validation coverage across all 72 tests.
+- automated validation coverage across configuration, capture, parsing, and
+  static-pipeline tests.
 
 ## Report preview
 
@@ -249,6 +249,9 @@ Current capabilities include:
 - raw `.pb` persistence with nonsecret `.json` metadata;
 - atomic non-overwriting file finalization with rollback;
 - deterministic, network-free mocked tests.
+- capture-integrity validation and GTFS-Realtime Protocol Buffer decoding;
+- immutable normalized Vehicle Position and Trip Update models with UTC
+  timestamps, enum names, and validation findings.
 
 Supported feeds:
 
@@ -312,10 +315,15 @@ YYYYMMDDTHHMMSSZ_<CAPTURE_UUID>.pb
 YYYYMMDDTHHMMSSZ_<CAPTURE_UUID>.json
 ```
 
-Raw payloads and sidecars remain excluded from Git. Protobuf parsing is not
-implemented yet.
+Raw payloads and sidecars remain excluded from Git. Locally captured payloads
+can now be integrity-checked and decoded without modifying the raw files:
 
-This is not a recurring scheduler, production collector, decoded
+```powershell
+python .\src\parse_gtfs_realtime.py `
+    --payload data\raw\gtfs_realtime\stm\vehicle_positions\YYYY\MM\DD\CAPTURE.pb
+```
+
+This is not a recurring scheduler, production collector, persisted
 GTFS-Realtime pipeline, real-time DuckDB model, or live GitHub Pages feed.
 Freshness, completeness, trip matching, delay, punctuality, and reliability
 metrics remain future work.
@@ -327,6 +335,7 @@ Detailed references:
 
 - [GTFS-Realtime Foundation](docs/gtfs_realtime_foundation.md)
 - [One-Shot GTFS-Realtime Capture](docs/gtfs_realtime_capture.md)
+- [GTFS-Realtime Protocol Buffer Parsing](docs/gtfs_realtime_parsing.md)
 - [Data Source, Attribution, and Terms of Use](docs/data_source_and_terms.md)
 
 Data source: Société de transport de Montréal (STM), under the Creative
@@ -455,6 +464,7 @@ montrealtransit/
 │   ├── data_quality_rules.md
 │   ├── gtfs_realtime_foundation.md
 │   ├── gtfs_realtime_capture.md
+│   ├── gtfs_realtime_parsing.md
 │   └── index.html
 ├── sql/
 │   └── quality/
@@ -463,12 +473,14 @@ montrealtransit/
 │   ├── generate_report_screenshots.py
 │   ├── capture_gtfs_realtime.py
 │   ├── gtfs_realtime_config.py
+│   ├── parse_gtfs_realtime.py
 │   ├── ingest_gtfs.py
 │   ├── refresh_static_gtfs.py
 │   └── run_quality_checks.py
 ├── tests/
 │   ├── test_gtfs_realtime_config.py
 │   ├── test_gtfs_realtime_capture.py
+│   ├── test_gtfs_realtime_parser.py
 │   └── test_pipeline.py
 ├── .env.example
 ├── .gitignore
@@ -548,7 +560,7 @@ Static GTFS data supplied by the Société de transport de Montréal (STM).
 - [x] Add isolated, network-free foundation tests and documentation
 - [x] Capture one selected GTFS-Realtime feed securely
 - [x] Preserve raw GTFS-Realtime responses with nonsecret metadata
-- [ ] Parse GTFS-Realtime protobuf messages
+- [x] Parse GTFS-Realtime protobuf messages
 - [ ] Measure feed freshness and completeness
 - [ ] Compare scheduled and real-time service data
 - [ ] Build service reliability indicators

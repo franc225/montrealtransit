@@ -6,8 +6,8 @@ The Version 2 foundation establishes configuration, secret handling,
 validation, and local raw-storage conventions for STM GTFS-Realtime capture.
 
 The one-shot capture increment can download and preserve an explicitly
-selected feed. It does not parse protobuf messages or calculate delays,
-punctuality, or reliability metrics.
+selected feed. A separate parser now validates and decodes preserved protobuf
+messages without calculating delays, punctuality, or reliability metrics.
 
 ## Configuration
 
@@ -144,17 +144,17 @@ and manual validation.
 
 ## Current limitations
 
-This increment does not:
+This foundation does not:
 
-- parse GTFS-Realtime protobuf messages;
 - load real-time data into DuckDB;
 - measure freshness, completeness, delay, punctuality, or reliability.
 
 ## Planned next step
 
-The next increment can validate captured payload structure and add protobuf
-parsing after raw response preservation. It must continue to tolerate
-unavailable, incomplete, stale, empty, or invalid responses.
+Captured payload parsing is documented in
+[GTFS-Realtime Protocol Buffer Parsing](gtfs_realtime_parsing.md). The next
+increment can persist normalized objects in DuckDB and add feed-quality
+controls.
 
 See [Data Source, Attribution, and Terms of Use](data_source_and_terms.md) for
 STM attribution, licence information, availability limitations, and the
