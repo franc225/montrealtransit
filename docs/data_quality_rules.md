@@ -97,11 +97,29 @@ This confirms that the loaded snapshot passed the current checks for:
 
 The current rules do not yet evaluate:
 
-- GTFS-Realtime feed availability;
-- real-time feed freshness;
-- vehicle position completeness;
+- GTFS-Realtime provider availability;
 - planned versus observed arrival deviation;
 - operational punctuality;
 - service cancellations;
 - passenger occupancy data;
 - geographic accuracy beyond a broad coordinate envelope.
+
+## GTFS-Realtime feed-quality rules
+
+Realtime rules are separate from static `DQ` rules and use capture time as the
+observation time.
+
+| Rule | Category | Meaning |
+|---|---|---|
+| `RTF001` | Freshness | Feed-header age against the 30-second refresh reference; excessive future skew fails. |
+| `RTF002` | Freshness | Maximum timestamped entity age against the 90-second recommendation. |
+| `RTF003` | Freshness | Future timestamps must remain within the five-second project tolerance. |
+| `RTS001` | Sequence | Feed timestamps must not decrease between comparable captures. |
+| `RTS002` | Sequence | A repeated feed timestamp is reported for review. |
+| `RTS003` | Sequence | An unchanged payload SHA-256 is reported for review. |
+| `RTS004` | Collector | Local capture interval is informational and is not provider freshness. |
+| `RTC001+` | Completeness | Stable ordered feed/entity/field availability metrics; optional fields are informational by default. |
+
+Realtime statuses are `PASS`, `WARN`, `FAIL`, `INFO`, and
+`NOT_APPLICABLE`. Deleted entities do not enter business-field denominators,
+and zero denominators produce null ratios and `NOT_APPLICABLE`.

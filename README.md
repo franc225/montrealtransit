@@ -1,10 +1,10 @@
 # Montréal Transit Reliability & Data Quality
 
-![Project status](https://img.shields.io/badge/status-V2%20capture%20hardened-2E8B57?style=flat-square)
+![Project status](https://img.shields.io/badge/status-V2%20feed%20quality-2E8B57?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
 ![DuckDB](https://img.shields.io/badge/DuckDB-analytics-FCC624?style=flat-square&logo=duckdb&logoColor=black)
 ![Static GTFS](https://img.shields.io/badge/Static%20GTFS-pipeline%20complete-0085CA?style=flat-square)
-![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-validated%20raw%20capture-6F42C1?style=flat-square)
+![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-freshness%20%26%20completeness-6F42C1?style=flat-square)
 ![API security](https://img.shields.io/badge/API%20security-redirect%20safe-137333?style=flat-square)
 ![Report](https://img.shields.io/badge/report-HTML%20static-5B5FC7?style=flat-square)
 [![Validate pipeline](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml/badge.svg)](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml)
@@ -59,15 +59,16 @@ This project demonstrates practical skills in:
   network-free dry-run support.
 - Added incremental SHA-256 generation and non-overwriting rollback-based
   payload/metadata persistence.
+- Added capture-relative freshness and entity/field completeness analytics.
+- Added transactional normalized GTFS-Realtime DuckDB tables with safe
+  idempotent ingestion and rollback.
 
 ### Planned
 
 - Schedule recurring capture after the one-shot collector is operationally
   validated.
-- Load decoded GTFS-Realtime entities into dedicated DuckDB tables.
 - Match scheduled and real-time trip identifiers.
 - Compare scheduled and real-time service performance.
-- Measure feed freshness and completeness.
 - Add service reliability metrics and dashboards.
 - Add delay prediction or anomaly detection only after the reliability layer is complete.
 
@@ -324,9 +325,23 @@ python .\src\parse_gtfs_realtime.py `
 ```
 
 This is not a recurring scheduler, production collector, persisted
-GTFS-Realtime pipeline, real-time DuckDB model, or live GitHub Pages feed.
-Freshness, completeness, trip matching, delay, punctuality, and reliability
-metrics remain future work.
+GTFS-Realtime scheduler, or live GitHub Pages feed. Static matching, delay,
+punctuality, and reliability metrics remain future work.
+
+Analyze and persist a local validated capture:
+
+```powershell
+python .\src\ingest_gtfs_realtime.py `
+    --payload data\raw\gtfs_realtime\stm\vehicle_positions\YYYY\MM\DD\CAPTURE.pb
+```
+
+Calculate feed quality without writing DuckDB:
+
+```powershell
+python .\src\ingest_gtfs_realtime.py `
+    --payload <PATH_TO_CAPTURE.pb> `
+    --no-persist
+```
 
 Never paste Swagger-generated curl commands containing the API key into
 documentation, issues, commits, or chat tools.
@@ -336,6 +351,7 @@ Detailed references:
 - [GTFS-Realtime Foundation](docs/gtfs_realtime_foundation.md)
 - [One-Shot GTFS-Realtime Capture](docs/gtfs_realtime_capture.md)
 - [GTFS-Realtime Protocol Buffer Parsing](docs/gtfs_realtime_parsing.md)
+- [GTFS-Realtime Feed Quality](docs/gtfs_realtime_feed_quality.md)
 - [Data Source, Attribution, and Terms of Use](docs/data_source_and_terms.md)
 
 Data source: Société de transport de Montréal (STM), under the Creative
@@ -561,7 +577,7 @@ Static GTFS data supplied by the Société de transport de Montréal (STM).
 - [x] Capture one selected GTFS-Realtime feed securely
 - [x] Preserve raw GTFS-Realtime responses with nonsecret metadata
 - [x] Parse GTFS-Realtime protobuf messages
-- [ ] Measure feed freshness and completeness
+- [x] Measure feed freshness and completeness
 - [ ] Compare scheduled and real-time service data
 - [ ] Build service reliability indicators
 

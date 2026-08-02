@@ -118,5 +118,6 @@ The parser does not support normalized Service Alert models, persistence,
 freshness/completeness KPIs, static-to-real-time trip matching, delay or
 punctuality calculations, reliability indicators, or live reporting.
 
-The next planned increment is dedicated DuckDB persistence followed by feed
-quality controls.
+Parsed captures can now proceed to the separate
+[GTFS-Realtime Feed Quality](gtfs_realtime_feed_quality.md) stage for freshness,
+completeness, and transactional DuckDB persistence.

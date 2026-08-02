@@ -153,11 +153,13 @@ class ParseSummary:
 
 @dataclass(frozen=True)
 class ParsedFeed:
+    capture_uuid: str
     provider: str
     feed_type: str
     payload_relative_path: str
     captured_at_utc: datetime
     payload_size_bytes: int
+    payload_sha256: str
     sha256_verified: bool
     header: ParsedFeedHeader
     entities: tuple[ParsedEntity, ...]
@@ -167,11 +169,13 @@ class ParsedFeed:
 
 @dataclass(frozen=True)
 class ValidatedCapture:
+    capture_uuid: str
     provider: str
     feed_type: str
     payload_path: Path
     metadata_path: Path
     payload_relative_path: str
+    metadata_relative_path: str
     captured_at_utc: datetime
     payload_size_bytes: int
     payload_sha256: str
@@ -319,11 +323,13 @@ def validate_capture(
         raise ParserError("Capture filename UUID does not match capture metadata.")
 
     return ValidatedCapture(
+        capture_uuid=str(metadata_uuid),
         provider=provider,
         feed_type=feed_type,
         payload_path=selected_payload,
         metadata_path=selected_metadata,
         payload_relative_path=selected_payload.relative_to(config.project_root).as_posix(),
+        metadata_relative_path=selected_metadata.relative_to(config.project_root).as_posix(),
         captured_at_utc=captured_at,
         payload_size_bytes=payload_size,
         payload_sha256=actual_sha256,
@@ -601,11 +607,13 @@ def decode_feed(payload: bytes, capture: ValidatedCapture) -> ParsedFeed:
         validation_finding_count=len(findings),
     )
     return ParsedFeed(
+        capture_uuid=capture.capture_uuid,
         provider=capture.provider,
         feed_type=capture.feed_type,
         payload_relative_path=capture.payload_relative_path,
         captured_at_utc=capture.captured_at_utc,
         payload_size_bytes=capture.payload_size_bytes,
+        payload_sha256=capture.payload_sha256,
         sha256_verified=True,
         header=header,
         entities=tuple(entities),

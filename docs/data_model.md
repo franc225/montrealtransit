@@ -201,10 +201,28 @@ Static HTML report
 
 The current model supports static GTFS quality validation.
 
-The future real-time scope will add tables for:
+## GTFS-Realtime analytical layer
 
-- vehicle positions;
-- trip updates;
-- feed freshness;
+Realtime facts use UTC and a separate `gtfs_realtime_` prefix. Original Unix
+timestamps and derived UTC values are preserved in distinct columns.
+
+| Table | Grain |
+|---|---|
+| `gtfs_realtime_capture` | One validated capture UUID |
+| `gtfs_realtime_entity` | Capture UUID plus FeedEntity source index |
+| `gtfs_realtime_vehicle_position` | One normalized Vehicle Position entity |
+| `gtfs_realtime_trip_update` | One normalized Trip Update entity |
+| `gtfs_realtime_stop_time_update` | Capture, entity index, and update index |
+| `gtfs_realtime_quality_run` | One feed-quality execution |
+| `gtfs_realtime_quality_result` | One ordered metric/rule result per execution |
+
+Capture inventory stores provider/feed identity, capture and feed timestamps,
+version/incrementality, project-relative raw paths, payload size/hash, counts,
+and ingestion metadata. Entity facts retain common trip, route, direction, and
+vehicle identifiers for the future matching stage. All capture facts and
+quality rows are committed atomically.
+
+The future real-time scope will add:
+
 - planned versus observed service performance;
 - reliability indicators by route, period, and direction.
