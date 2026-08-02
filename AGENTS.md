@@ -644,5 +644,20 @@ One-shot capture must:
 Capture metadata must never contain credentials, request headers, cookies,
 environment dumps, absolute local paths, or complete response headers.
 
+## GTFS-Realtime parser conventions
+
+Parsing must verify capture metadata, payload size, and SHA-256 before
+decoding. Preserve raw protobuf bytes unchanged and keep decoded values in
+immutable normalized Python models.
+
+Preserve missing optional fields as absent values. Preserve original Unix
+timestamps and derive timezone-aware UTC datetimes only in explicitly named
+fields. Preserve enum numeric values alongside readable names. Do not discard
+unsupported entity types silently.
+
+Parser tests must use synthetic in-memory protobuf messages, isolated project
+roots, and network tripwires. The parser layer must not persist decoded data,
+modify static GTFS, or calculate delay, punctuality, or reliability metrics.
+
 For read-only audits and planning tasks, do not run shell commands, tests,
 or validation workflows unless the user explicitly requests them.

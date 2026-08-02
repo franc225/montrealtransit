@@ -13,8 +13,9 @@ vehicle_positions
 trip_updates
 ```
 
-It does not parse Protocol Buffers, load real-time data into DuckDB, schedule
-recurring captures, or calculate operational metrics.
+It does not parse Protocol Buffers during capture, load real-time data into
+DuckDB, schedule recurring captures, or calculate operational metrics. The
+separate parser can validate and decode a completed raw capture afterward.
 
 ## API key
 
@@ -188,7 +189,8 @@ single feed capture you intend to review.
 
 ## Current limitations
 
-- No protobuf parsing.
+- No protobuf parsing in the capture command; use
+  [GTFS-Realtime Protocol Buffer Parsing](gtfs_realtime_parsing.md) afterward.
 - No DuckDB real-time tables.
 - No feed freshness or completeness controls.
 - No delays, punctuality, or reliability indicators.
