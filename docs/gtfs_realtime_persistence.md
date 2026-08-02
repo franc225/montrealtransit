@@ -78,6 +78,6 @@ The current static ingestion does not persist `frequencies.txt`. This does not
 block normalized realtime persistence. Frequency-instance matching remains
 explicitly unsupported until a dedicated static persistence policy is added.
 
-This layer performs no scheduled-service matching, service-date resolution,
-scheduled comparison, punctuality classification, or reliability calculation.
-The next stage is deterministic scheduled-service matching.
+Complete schema-v2 captures can proceed to
+[GTFS-Realtime Scheduled-Service Matching](gtfs_realtime_schedule_matching.md).
+Older incomplete captures remain ineligible.

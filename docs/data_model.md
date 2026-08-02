@@ -230,5 +230,18 @@ migration leaves older incomplete rows with a null current persistence version.
 
 The future real-time scope will add:
 
-- planned versus observed service performance;
 - reliability indicators by route, period, and direction.
+
+## GTFS-Realtime matching layer
+
+| Table | Grain |
+|---|---|
+| `gtfs_realtime_match_run` | Capture, static snapshot, algorithm, and configuration version |
+| `gtfs_realtime_trip_match` | One eligible realtime entity per matching run |
+| `gtfs_realtime_stop_time_match` | One original StopTimeUpdate per matching run |
+| `gtfs_realtime_match_finding` | One ambiguity, conflict, or coverage finding |
+
+Matching rows preserve complete realtime lineage, static snapshot and trip
+identity, Montréal service-date resolution, original scheduled strings,
+service seconds/day offsets, DST resolution, and raw comparison deltas. They do
+not contain punctuality or reliability classifications.

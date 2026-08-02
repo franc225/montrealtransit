@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "matching_algorithm_version": "1.0",
+  "timezone": "America/Montreal",
+  "required_persistence_schema_version": 2,
+  "service_date_lookback_days": 1,
+  "exact_trip_id_enabled": true,
+  "composite_fallback_enabled": true,
+  "require_route_consistency": true,
+  "require_direction_consistency": true,
+  "require_start_time_consistency": true,
+  "frequency_trip_policy": "UNSUPPORTED"
+}
