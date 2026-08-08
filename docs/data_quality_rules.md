@@ -123,3 +123,25 @@ observation time.
 Realtime statuses are `PASS`, `WARN`, `FAIL`, `INFO`, and
 `NOT_APPLICABLE`. Deleted entities do not enter business-field denominators,
 and zero denominators produce null ratios and `NOT_APPLICABLE`.
+
+## GTFS-Realtime reliability indicators
+
+Reliability indicators are separate from static `DQ` rules and feed-quality
+rules. Their project-policy identifiers include:
+
+| Indicator | Meaning |
+|---|---|
+| `RTP001_EVENT_CLASSIFICATION` | Classify one eligible arrival or departure using versioned thresholds. |
+| `RTP002_ON_TIME_RATIO` | On-time classified events divided by classified events. |
+| `RTD001_MEDIAN_DELAY_SECONDS` | Median selected event delta. |
+| `RTD002_P95_DELAY_SECONDS` | Linearly interpolated 95th percentile selected delta. |
+| `RTR001_REPORTED_CANCELLATION_COUNT` | Explicitly observed canceled relationships only. |
+| `RTCV001_TRIP_MATCHING_RATIO` | Matched observed entities divided by observed entities. |
+| `RTCV002_STOP_MATCHING_RATIO` | Matched StopTimeUpdates divided by observed StopTimeUpdates. |
+| `RTCV003_COMPARISON_AVAILABILITY_RATIO` | Canonical events with a comparison divided by canonical events. |
+| `RTCONS001_DELAY_SOURCE_DISAGREEMENT` | Reported/calculated delay difference exceeds tolerance. |
+
+Punctuality indicators are informational unless a separate enabled performance
+target is documented. Low sample or coverage is an interpretation limitation,
+not evidence of unreliable transit service. Zero denominators remain null and
+`NOT_APPLICABLE`.

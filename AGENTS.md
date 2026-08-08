@@ -705,5 +705,21 @@ explicitly unsupported until static frequency persistence is designed. The
 matching layer must not assign punctuality or reliability classifications.
 Tests use only synthetic static and realtime data in temporary warehouses.
 
+## GTFS-Realtime reliability conventions
+
+Keep service-performance and data-coverage metrics separate. Never treat
+unmatched, ambiguous, or missing realtime data as proof of a service failure.
+Arrivals and departures remain separate observations and denominators.
+
+Punctuality thresholds are versioned project policy, not official STM or
+GTFS-Realtime requirements. Undefined denominators remain null or
+`NOT_APPLICABLE`. Deduplicate event observations deterministically and preserve
+the selected delta's source together with both reported and calculated values.
+
+Do not create an opaque composite reliability score without a documented
+methodology. Do not calculate headway reliability without controlled recurring
+observation coverage. Reliability tests use only synthetic facts and temporary
+DuckDB warehouses.
+
 For read-only audits and planning tasks, do not run shell commands, tests,
 or validation workflows unless the user explicitly requests them.

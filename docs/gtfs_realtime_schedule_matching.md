@@ -111,6 +111,6 @@ raw records, credentials, environment values, or absolute local paths.
 ## Limitations and next step
 
 Frequency instances, recurring capture, production monitoring, public realtime
-reporting, punctuality classifications, headway adherence, and reliability
-aggregates remain future work. The next increment is reliability indicators
-built from these preserved comparison facts.
+reporting, and headway adherence remain future work. Transparent service
+performance and coverage indicators built from these comparison facts are
+documented in [GTFS-Realtime Service Reliability Indicators](gtfs_realtime_reliability.md).

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "reliability_algorithm_version": "1.0",
+  "required_matching_algorithm_version": "1.0",
+  "required_persistence_schema_version": 2,
+  "early_threshold_seconds": -60,
+  "on_time_upper_seconds": 300,
+  "very_late_threshold_seconds": 600,
+  "observation_selection_policy": "LATEST_ELIGIBLE",
+  "eligible_trip_match_statuses": ["MATCHED"],
+  "eligible_stop_match_statuses": ["MATCHED"],
+  "eligible_schedule_relationships": ["ABSENT", "SCHEDULED", "CANCELED", "DUPLICATED"],
+  "enabled_indicators": [
+    "RTP001_EVENT_CLASSIFICATION",
+    "RTP002_ON_TIME_RATIO",
+    "RTD001_MEDIAN_DELAY_SECONDS",
+    "RTD002_P95_DELAY_SECONDS",
+    "RTR001_REPORTED_CANCELLATION_COUNT",
+    "RTCV001_TRIP_MATCHING_RATIO",
+    "RTCV002_STOP_MATCHING_RATIO",
+    "RTCV003_COMPARISON_AVAILABILITY_RATIO",
+    "RTCONS001_DELAY_SOURCE_DISAGREEMENT"
+  ],
+  "minimum_aggregate_denominator": 5,
+  "minimum_matching_coverage_ratio": 0.8,
+  "delay_consistency_tolerance_seconds": 30,
+  "incomplete_data_status": "INSUFFICIENT_DATA"
+}

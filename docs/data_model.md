@@ -228,10 +228,6 @@ descriptors, numeric and readable enum representations, all parser-exposed
 Vehicle Position fields, and complete StopTimeUpdate event values. Additive
 migration leaves older incomplete rows with a null current persistence version.
 
-The future real-time scope will add:
-
-- reliability indicators by route, period, and direction.
-
 ## GTFS-Realtime matching layer
 
 | Table | Grain |
@@ -245,3 +241,19 @@ Matching rows preserve complete realtime lineage, static snapshot and trip
 identity, Montréal service-date resolution, original scheduled strings,
 service seconds/day offsets, DST resolution, and raw comparison deltas. They do
 not contain punctuality or reliability classifications.
+
+## GTFS-Realtime reliability layer
+
+| Table | Grain |
+|---|---|
+| `gtfs_realtime_reliability_run` | One match-run/filter/algorithm/configuration analysis |
+| `gtfs_realtime_reliability_event` | One canonical arrival or departure observation |
+| `gtfs_realtime_reliability_trip` | One trip instance and event type |
+| `gtfs_realtime_reliability_aggregate` | One explicit dimension and event type |
+| `gtfs_realtime_reliability_finding` | One stable indicator finding |
+
+Reliability results retain matching, capture, entity, StopTimeUpdate, static
+snapshot, algorithm, configuration, and threshold lineage. Service-performance
+facts remain separate from matching and data-coverage metrics. Undefined
+denominators remain null, and sparse captures are never represented as
+comprehensive system reliability.

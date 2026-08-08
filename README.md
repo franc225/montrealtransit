@@ -1,10 +1,10 @@
 # Montréal Transit Reliability & Data Quality
 
-![Project status](https://img.shields.io/badge/status-V2%20schedule%20matching-2E8B57?style=flat-square)
+![Project status](https://img.shields.io/badge/status-V2%20reliability%20indicators-2E8B57?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
 ![DuckDB](https://img.shields.io/badge/DuckDB-analytics-FCC624?style=flat-square&logo=duckdb&logoColor=black)
 ![Static GTFS](https://img.shields.io/badge/Static%20GTFS-pipeline%20complete-0085CA?style=flat-square)
-![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-schedule%20matched-6F42C1?style=flat-square)
+![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-reliability%20analytics-6F42C1?style=flat-square)
 ![API security](https://img.shields.io/badge/API%20security-redirect%20safe-137333?style=flat-square)
 ![Report](https://img.shields.io/badge/report-HTML%20static-5B5FC7?style=flat-square)
 [![Validate pipeline](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml/badge.svg)](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml)
@@ -68,14 +68,17 @@ This project demonstrates practical skills in:
   incomplete rows explicitly distinguishable.
 - Added deterministic scheduled-service, service-date, and StopTimeUpdate
   matching with static-snapshot lineage and DST-safe comparison facts.
+- Added transparent arrival/departure punctuality, trip, route, stop,
+  service-date, cancellation, and coverage indicators with versioned policy.
 
 ### Planned
 
 - Schedule recurring capture after the one-shot collector is operationally
   validated.
 - Add static frequency-instance persistence and matching policy.
-- Compare scheduled and real-time service performance.
-- Add service reliability metrics and dashboards.
+- Add controlled recurring capture and collector-coverage monitoring.
+- Add headway and travel-time reliability after recurring coverage is proven.
+- Publish a dedicated public reliability report or dashboard.
 - Add delay prediction or anomaly detection only after the reliability layer is complete.
 
 ## Initial data profile
@@ -330,9 +333,10 @@ python .\src\parse_gtfs_realtime.py `
     --payload data\raw\gtfs_realtime\stm\vehicle_positions\YYYY\MM\DD\CAPTURE.pb
 ```
 
-This is not a recurring scheduler, production collector, or live GitHub Pages
-feed. Deterministic static matching is available after normalized persistence;
-punctuality and reliability metrics remain future work.
+This is not a recurring scheduler, production collector, or live realtime
+GitHub Pages feed. Deterministic matching and reliability calculations are
+available for selected persisted runs, but sparse captures are not
+comprehensive STM service reliability.
 
 Analyze and persist a local validated capture:
 
@@ -360,6 +364,7 @@ Detailed references:
 - [GTFS-Realtime Feed Quality](docs/gtfs_realtime_feed_quality.md)
 - [GTFS-Realtime Normalized Persistence](docs/gtfs_realtime_persistence.md)
 - [GTFS-Realtime Scheduled-Service Matching](docs/gtfs_realtime_schedule_matching.md)
+- [GTFS-Realtime Service Reliability Indicators](docs/gtfs_realtime_reliability.md)
 - [Data Source, Attribution, and Terms of Use](docs/data_source_and_terms.md)
 
 Data source: Société de transport de Montréal (STM), under the Creative
@@ -588,7 +593,10 @@ Static GTFS data supplied by the Société de transport de Montréal (STM).
 - [x] Measure feed freshness and completeness
 - [x] Persist complete normalized realtime lineage in DuckDB
 - [x] Match realtime entities to scheduled service deterministically
-- [ ] Build service reliability indicators
+- [x] Build transparent service reliability and coverage indicators
+- [ ] Establish controlled recurring observation coverage
+- [ ] Add headway and travel-time reliability
+- [ ] Publish a public reliability report
 
 ### Version 3 — Advanced Analytics
 
