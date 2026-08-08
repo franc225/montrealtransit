@@ -1,10 +1,10 @@
 # Montréal Transit Reliability & Data Quality
 
-![Project status](https://img.shields.io/badge/status-V2%20reliability%20indicators-2E8B57?style=flat-square)
+![Project status](https://img.shields.io/badge/status-V2%20interactive%20reporting-2E8B57?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
 ![DuckDB](https://img.shields.io/badge/DuckDB-analytics-FCC624?style=flat-square&logo=duckdb&logoColor=black)
 ![Static GTFS](https://img.shields.io/badge/Static%20GTFS-pipeline%20complete-0085CA?style=flat-square)
-![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-reliability%20analytics-6F42C1?style=flat-square)
+![GTFS-Realtime](https://img.shields.io/badge/GTFS--Realtime-interactive%20dashboard-6F42C1?style=flat-square)
 ![API security](https://img.shields.io/badge/API%20security-redirect%20safe-137333?style=flat-square)
 ![Report](https://img.shields.io/badge/report-HTML%20static-5B5FC7?style=flat-square)
 [![Validate pipeline](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml/badge.svg)](https://github.com/franc225/montrealtransit/actions/workflows/validate.yml)
@@ -15,9 +15,13 @@ A data quality and operational analytics project built from Montréal STM GTFS d
 
 [View the live Data Quality Overview](https://franc225.github.io/montrealtransit/)
 
+[View the live GTFS-Realtime Reliability Dashboard](https://franc225.github.io/montrealtransit/gtfs_realtime_reliability.html)
+
 ## Objective
 
-Transform static STM GTFS data into a reliable analytical dataset, validate its quality through repeatable controls, and publish a static HTML data quality report.
+Transform STM static and GTFS-Realtime data into traceable analytical datasets,
+validate their quality, compare observed service with the schedule, and publish
+static HTML quality and reliability reports.
 
 This project demonstrates practical skills in:
 
@@ -70,6 +74,8 @@ This project demonstrates practical skills in:
   matching with static-snapshot lineage and DST-safe comparison facts.
 - Added transparent arrival/departure punctuality, trip, route, stop,
   service-date, cancellation, and coverage indicators with versioned policy.
+- Added a self-contained interactive reliability dashboard with read-only
+  persisted-metric loading, client-side filters, and safe HTML serialization.
 
 ### Planned
 
@@ -78,7 +84,12 @@ This project demonstrates practical skills in:
 - Add static frequency-instance persistence and matching policy.
 - Add controlled recurring capture and collector-coverage monitoring.
 - Add headway and travel-time reliability after recurring coverage is proven.
-- Publish a dedicated public reliability report or dashboard.
+- Add multi-run historical trends and recurring controlled capture.
+- Measure collector availability only after recurring coverage is established.
+- Add headway adherence, excess wait time, travel-time reliability, and
+  passenger weighting only when their data requirements are met.
+- Add a continuously refreshed public dashboard only with production-grade
+  collection and monitoring.
 - Add delay prediction or anomaly detection only after the reliability layer is complete.
 
 ## Initial data profile
@@ -119,6 +130,27 @@ Static HTML Data Quality Overview
 GitHub Pages
 ```
 
+The realtime path remains separate from static ingestion and uses its static
+service snapshot only during deterministic matching:
+
+```text
+Static GTFS
+    ↓
+GTFS-Realtime capture
+    ↓
+Protocol Buffer parsing
+    ↓
+DuckDB persistence
+    ↓
+Freshness & completeness
+    ↓
+Scheduled-service matching
+    ↓
+Reliability indicators
+    ↓
+Interactive HTML dashboard
+```
+
 ## Data Quality Overview
 
 The project generates a static HTML report published through GitHub Pages.
@@ -155,12 +187,15 @@ These images are generated from `docs/index.html`:
 
 ![Data Quality Rule Results](docs/assets/screenshots/data-quality-rule-results.png)
 
-Regenerate both screenshots with an installed Microsoft Edge, Google Chrome,
-or Chromium browser:
+Regenerate the README screenshots with an installed Microsoft Edge, Google
+Chrome, or Chromium browser:
 
 ```powershell
 python .\src\generate_report_screenshots.py
 ```
+
+Use `--report static` or `--report realtime` to regenerate only one report's
+screenshots.
 
 ## Data model
 
@@ -240,7 +275,7 @@ The controls cover:
 
 A successful validation means that no exception was detected by the current rules. It does not certify real-time data availability, punctuality, service reliability, or operational performance.
 
-## GTFS-Realtime capture
+## Implemented GTFS-Realtime capabilities
 
 The implemented GTFS-Realtime foundation validates the official STM Vehicle
 Positions and Trip Updates endpoints and provides a controlled one-shot raw
@@ -284,93 +319,286 @@ finally {
 }
 ```
 
-Validate configuration and credentials locally:
-
-```powershell
-python .\src\gtfs_realtime_config.py
-```
-
-Preview both feeds without making a request or creating files:
-
-```powershell
-python .\src\capture_gtfs_realtime.py `
-    --feed vehicle_positions `
-    --dry-run
-
-python .\src\capture_gtfs_realtime.py `
-    --feed trip_updates `
-    --dry-run
-```
-
-Capture one response from the selected feed:
-
-```powershell
-python .\src\capture_gtfs_realtime.py `
-    --feed vehicle_positions
-
-python .\src\capture_gtfs_realtime.py `
-    --feed trip_updates
-```
-
-Output is stored under:
-
-```text
-data/raw/gtfs_realtime/stm/<FEED_TYPE>/YYYY/MM/DD/
-```
-
-Files share a UTC timestamp and UUID:
-
-```text
-YYYYMMDDTHHMMSSZ_<CAPTURE_UUID>.pb
-YYYYMMDDTHHMMSSZ_<CAPTURE_UUID>.json
-```
-
-Raw payloads and sidecars remain excluded from Git. Locally captured payloads
-can now be integrity-checked and decoded without modifying the raw files:
-
-```powershell
-python .\src\parse_gtfs_realtime.py `
-    --payload data\raw\gtfs_realtime\stm\vehicle_positions\YYYY\MM\DD\CAPTURE.pb
-```
-
-This is not a recurring scheduler, production collector, or live realtime
-GitHub Pages feed. Deterministic matching and reliability calculations are
-available for selected persisted runs, but sparse captures are not
-comprehensive STM service reliability.
-
-Analyze and persist a local validated capture:
-
-```powershell
-python .\src\ingest_gtfs_realtime.py `
-    --payload data\raw\gtfs_realtime\stm\vehicle_positions\YYYY\MM\DD\CAPTURE.pb
-```
-
-Calculate feed quality without writing DuckDB:
-
-```powershell
-python .\src\ingest_gtfs_realtime.py `
-    --payload <PATH_TO_CAPTURE.pb> `
-    --no-persist
-```
+Raw payloads and sidecars use a shared UTC timestamp and UUID under
+`data/raw/gtfs_realtime/stm/<FEED_TYPE>/YYYY/MM/DD/` and remain excluded from
+Git. The reproducible commands for capture through reporting follow below.
 
 Never paste Swagger-generated curl commands containing the API key into
 documentation, issues, commits, or chat tools.
-
-Detailed references:
-
-- [GTFS-Realtime Foundation](docs/gtfs_realtime_foundation.md)
-- [One-Shot GTFS-Realtime Capture](docs/gtfs_realtime_capture.md)
-- [GTFS-Realtime Protocol Buffer Parsing](docs/gtfs_realtime_parsing.md)
-- [GTFS-Realtime Feed Quality](docs/gtfs_realtime_feed_quality.md)
-- [GTFS-Realtime Normalized Persistence](docs/gtfs_realtime_persistence.md)
-- [GTFS-Realtime Scheduled-Service Matching](docs/gtfs_realtime_schedule_matching.md)
-- [GTFS-Realtime Service Reliability Indicators](docs/gtfs_realtime_reliability.md)
-- [Data Source, Attribution, and Terms of Use](docs/data_source_and_terms.md)
 
 Data source: Société de transport de Montréal (STM), under the Creative
 Commons Attribution 4.0 licence. This is an independent and unofficial
 portfolio project and is not affiliated with, sponsored by, endorsed by, or
 associated with the STM.
+
+## GTFS-Realtime end-to-end workflow
+
+The interactive workflow has been validated using controlled live STM
+GTFS-Realtime observations. A limited set of captures demonstrates technical
+feasibility of the complete pipeline, but does not represent continuous,
+comprehensive, or system-wide STM reliability.
+
+Prerequisites are Windows PowerShell, the activated Python virtual environment,
+installed repository dependencies, and an STM developer API key loaded into
+`STM_GTFS_REALTIME_API_KEY` using the secure session-only pattern above. Never
+commit an API key. `.env` and `.env.*` are ignored; `.env.example` is
+intentionally trackable and contains only a placeholder.
+
+### 1. Refresh static GTFS
+
+This refreshes and validates the static STM feed, rebuilds DuckDB, runs its
+quality checks, and makes the service snapshot available for matching.
+
+```powershell
+python .\src\refresh_static_gtfs.py
+```
+
+See [Data Model](docs/data_model.md) and
+[Data Quality Rules](docs/data_quality_rules.md).
+
+### 2. Capture Vehicle Positions
+
+The one-shot capture produces an immutable `.pb` payload, nonsecret JSON
+sidecar, SHA-256 lineage, and UTC capture timestamp.
+
+```powershell
+python .\src\capture_gtfs_realtime.py `
+    --feed vehicle_positions
+
+$vpPayload = (
+    Get-ChildItem `
+        .\data\raw\gtfs_realtime\stm\vehicle_positions `
+        -Recurse `
+        -Filter *.pb `
+        -File |
+    Sort-Object LastWriteTimeUtc -Descending |
+    Select-Object -First 1
+).FullName
+```
+
+Files are stored under
+`data/raw/gtfs_realtime/stm/vehicle_positions/YYYY/MM/DD/` and ignored by Git.
+
+### 3. Capture Trip Updates
+
+Capture the two feed types close together for a controlled demonstration. This
+does not establish continuous observation coverage.
+
+```powershell
+python .\src\capture_gtfs_realtime.py `
+    --feed trip_updates
+
+$tuPayload = (
+    Get-ChildItem `
+        .\data\raw\gtfs_realtime\stm\trip_updates `
+        -Recurse `
+        -Filter *.pb `
+        -File |
+    Sort-Object LastWriteTimeUtc -Descending |
+    Select-Object -First 1
+).FullName
+```
+
+### 4. Ingest Vehicle Positions
+
+Ingestion validates capture integrity, parses protobuf internally, normalizes
+the feed, analyzes freshness and completeness, and transactionally persists
+the resulting lineage.
+
+```powershell
+python .\src\ingest_gtfs_realtime.py `
+    --payload $vpPayload |
+    Tee-Object -Variable vpIngestOutput
+
+$vpCaptureUuid = (
+    ($vpIngestOutput |
+        Select-String '^Capture UUID:').Line `
+        -replace '^Capture UUID:\s*', ''
+)
+```
+
+See [Protocol Buffer Parsing](docs/gtfs_realtime_parsing.md),
+[Normalized Persistence](docs/gtfs_realtime_persistence.md), and
+[Feed Quality](docs/gtfs_realtime_feed_quality.md).
+
+### 5. Ingest Trip Updates
+
+```powershell
+python .\src\ingest_gtfs_realtime.py `
+    --payload $tuPayload |
+    Tee-Object -Variable tuIngestOutput
+
+$tuCaptureUuid = (
+    ($tuIngestOutput |
+        Select-String '^Capture UUID:').Line `
+        -replace '^Capture UUID:\s*', ''
+)
+```
+
+### 6. Match Vehicle Positions to scheduled GTFS
+
+Matching uses static trip identity, Montréal service dates, service calendars,
+and stop sequence where relevant. Unmatched, ambiguous, conflict, unsupported,
+and not-applicable outcomes remain explicit.
+
+```powershell
+python .\src\match_gtfs_realtime.py `
+    --capture-uuid $vpCaptureUuid |
+    Tee-Object -Variable vpMatchOutput
+
+$vpMatchRunId = (
+    ($vpMatchOutput |
+        Select-String '^Match run ID:').Line `
+        -replace '^Match run ID:\s*', ''
+)
+```
+
+See [Scheduled-Service Matching](docs/gtfs_realtime_schedule_matching.md).
+
+### 7. Match Trip Updates
+
+Trip Updates provide the primary scheduled-versus-observed event facts used by
+the current reliability demonstration.
+
+```powershell
+python .\src\match_gtfs_realtime.py `
+    --capture-uuid $tuCaptureUuid |
+    Tee-Object -Variable tuMatchOutput
+
+$tuMatchRunId = (
+    ($tuMatchOutput |
+        Select-String '^Match run ID:').Line `
+        -replace '^Match run ID:\s*', ''
+)
+```
+
+### 8. Calculate reliability indicators
+
+When sufficient comparable data exists, indicators cover punctuality,
+separate arrival/departure metrics, delay distributions, route and stop
+aggregates, trip summaries, matching/comparison coverage, and observed schedule
+relationships. Service-performance and data-coverage metrics remain separate.
+
+```powershell
+python .\src\calculate_gtfs_realtime_reliability.py `
+    --match-run-id $tuMatchRunId |
+    Tee-Object -Variable reliabilityOutput
+
+$reliabilityRunId = (
+    ($reliabilityOutput |
+        Select-String '^Reliability run ID:').Line `
+        -replace '^Reliability run ID:\s*', ''
+)
+```
+
+See [Service Reliability Indicators](docs/gtfs_realtime_reliability.md).
+
+### 9. Review lineage identifiers
+
+```powershell
+[PSCustomObject]@{
+    VehiclePositionsCapture  = $vpCaptureUuid
+    VehiclePositionsMatchRun = $vpMatchRunId
+    TripUpdatesCapture       = $tuCaptureUuid
+    TripUpdatesMatchRun      = $tuMatchRunId
+    ReliabilityRun           = $reliabilityRunId
+}
+```
+
+These identifiers preserve reproducibility across capture, matching, and
+reliability stages.
+
+### 10. Generate the interactive dashboard
+
+The generator reads persisted metrics without recalculation. Its self-contained
+HTML needs no backend server or API key and is suitable for static GitHub Pages
+hosting. The public profile embeds aggregate and bounded presentation data;
+complete event-level analytical facts remain in DuckDB.
+
+```powershell
+python .\src\generate_gtfs_realtime_dashboard.py `
+    --reliability-run-id $reliabilityRunId `
+    --profile public `
+    --output .\docs\gtfs_realtime_reliability.html `
+    --open
+```
+
+See [Interactive Reliability Reporting](docs/gtfs_realtime_reporting.md).
+
+### 11. Verify secret handling
+
+The expected result of this check is no output. Do not share matching output if
+a leak is found.
+
+```powershell
+$searchRoots = @(
+    ".\src",
+    ".\tests",
+    ".\config",
+    ".\docs"
+)
+
+Get-ChildItem $searchRoots `
+    -Recurse `
+    -File `
+    -ErrorAction SilentlyContinue |
+    Select-String `
+        -SimpleMatch `
+        $env:STM_GTFS_REALTIME_API_KEY
+
+Remove-Item Env:STM_GTFS_REALTIME_API_KEY
+```
+
+### 12. Re-run validation
+
+```powershell
+python -m compileall -q src tests
+
+python -m unittest discover -s tests -p "test_*.py" -v
+```
+
+## Interactive reliability dashboard
+
+[Open the generated dashboard](docs/gtfs_realtime_reliability.html)
+
+The dashboard contains overview and lineage, coverage/confidence, punctuality,
+delay distribution, route and stop performance, trip detail, explicitly
+observed cancellations and schedule relationships, optional feed-quality
+context, and methodology. It is not a production monitor or continuously
+refreshed public reliability product.
+
+For publication size and clarity, all route aggregates are retained while stop
+and trip tables use deterministic bounded subsets and clearly report when they
+are truncated. Histogram counts are embedded as compact bins rather than the
+complete canonical event history.
+
+### Reliability overview and coverage
+
+![GTFS-Realtime reliability overview and coverage](docs/assets/screenshots/gtfs-realtime-reliability-overview.png)
+
+### Route and stop performance
+
+![GTFS-Realtime route and stop performance](docs/assets/screenshots/gtfs-realtime-reliability-performance.png)
+
+These screenshots are generated from the reviewed
+`docs/gtfs_realtime_reliability.html` artifact. The dashboard remains a
+controlled feasibility demonstration rather than continuous STM monitoring.
+
+## Documentation map
+
+| Topic | Documentation |
+|---|---|
+| Static data model | [Data Model](docs/data_model.md) |
+| Static and realtime quality rules | [Data Quality Rules](docs/data_quality_rules.md) |
+| Realtime configuration and storage | [GTFS-Realtime Foundation](docs/gtfs_realtime_foundation.md) |
+| Secure one-shot capture | [One-Shot Capture](docs/gtfs_realtime_capture.md) |
+| Protobuf validation and parsing | [Protocol Buffer Parsing](docs/gtfs_realtime_parsing.md) |
+| Normalized DuckDB persistence | [Normalized Persistence](docs/gtfs_realtime_persistence.md) |
+| Freshness and completeness | [Feed Quality](docs/gtfs_realtime_feed_quality.md) |
+| Static/realtime matching | [Scheduled-Service Matching](docs/gtfs_realtime_schedule_matching.md) |
+| Reliability methodology | [Service Reliability Indicators](docs/gtfs_realtime_reliability.md) |
+| Interactive reporting | [Interactive Reliability Reporting](docs/gtfs_realtime_reporting.md) |
+| Attribution and licence | [Data Source and Terms](docs/data_source_and_terms.md) |
 
 ## Refresh static GTFS data
 
@@ -519,6 +747,24 @@ montrealtransit/
 
 ## Local setup
 
+The concise tree above highlights the original static pipeline. The realtime
+implementation adds configuration for capture, quality, matching, and
+reliability; source modules for capture, parsing, persistence, quality,
+matching, reliability, and dashboard generation; matching/reliability/reporting
+tests; and the focused documents linked in the documentation map.
+
+```text
+config/gtfs_realtime*.json
+src/capture_gtfs_realtime.py
+src/parse_gtfs_realtime.py
+src/ingest_gtfs_realtime.py
+src/match_gtfs_realtime.py
+src/calculate_gtfs_realtime_reliability.py
+src/generate_gtfs_realtime_dashboard.py
+tests/test_gtfs_realtime_*.py
+docs/gtfs_realtime_*.md
+```
+
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -567,7 +813,13 @@ python -m unittest discover -s tests -p "test_*.py" -v
 
 ## Data source
 
-Static GTFS data supplied by the Société de transport de Montréal (STM).
+Static and GTFS-Realtime data are supplied by the Société de transport de
+Montréal (STM) under the applicable terms described in
+[Data Source, Attribution, and Terms of Use](docs/data_source_and_terms.md).
+
+This is an independent and unofficial portfolio project. It is not affiliated
+with, sponsored by, or endorsed by the STM. Data is provided as-is and
+according to availability.
 
 ## Roadmap
 
@@ -594,9 +846,14 @@ Static GTFS data supplied by the Société de transport de Montréal (STM).
 - [x] Persist complete normalized realtime lineage in DuckDB
 - [x] Match realtime entities to scheduled service deterministically
 - [x] Build transparent service reliability and coverage indicators
-- [ ] Establish controlled recurring observation coverage
-- [ ] Add headway and travel-time reliability
-- [ ] Publish a public reliability report
+- [x] Generate a self-contained interactive reliability dashboard
+- [x] Validate the complete pipeline with controlled live STM observations
+- [x] Generate a controlled feasibility dashboard locally
+- [ ] Establish recurring controlled observation coverage
+- [ ] Add multi-run historical trends and collector availability metrics
+- [ ] Add headway adherence, excess wait time, and travel-time reliability
+- [ ] Add passenger weighting where suitable source data exists
+- [ ] Establish production monitoring and a continuously refreshed dashboard
 
 ### Version 3 — Advanced Analytics
 

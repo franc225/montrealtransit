@@ -145,3 +145,7 @@ adherence, excess wait time, bunching, travel-time reliability, passenger
 weighting, production monitoring, and public reliability reporting remain
 future work. Headway metrics require a documented recurring observation
 cadence and cannot be derived responsibly from manual captures.
+
+Persisted reliability runs can be explored with the
+[Interactive GTFS-Realtime Reliability Dashboard](gtfs_realtime_reporting.md).
+Reporting consumes these historical results without recalculating them.

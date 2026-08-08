@@ -15,6 +15,7 @@ PROJECT_ROOT_ENVIRONMENT_VARIABLE = "MONTREAL_TRANSIT_PROJECT_ROOT"
 
 @dataclass(frozen=True)
 class Screenshot:
+    report_filename: str
     filename: str
     anchor: str
     width: int
@@ -25,6 +26,7 @@ class Screenshot:
 
 SCREENSHOTS = (
     Screenshot(
+        report_filename="index.html",
         filename="data-quality-overview.png",
         anchor="quality-overview",
         width=920,
@@ -33,12 +35,31 @@ SCREENSHOTS = (
         zoom=1.0,
     ),
     Screenshot(
+        report_filename="index.html",
         filename="data-quality-rule-results.png",
         anchor="quality-results",
         width=923,
         height=904,
         visible_section_count=3,
         zoom=0.8,
+    ),
+    Screenshot(
+        report_filename="gtfs_realtime_reliability.html",
+        filename="gtfs-realtime-reliability-overview.png",
+        anchor="overview",
+        width=1200,
+        height=980,
+        visible_section_count=2,
+        zoom=0.72,
+    ),
+    Screenshot(
+        report_filename="gtfs_realtime_reliability.html",
+        filename="gtfs-realtime-reliability-performance.png",
+        anchor="routes",
+        width=1200,
+        height=980,
+        visible_section_count=2,
+        zoom=0.68,
     ),
 )
 
@@ -161,17 +182,11 @@ def capture_screenshot(
     temporary_output.replace(output_path)
 
 
-def generate_screenshots(browser_path: Path | None = None) -> None:
+def generate_screenshots(browser_path: Path | None = None, report: str = "all") -> None:
     project_root = resolve_project_root()
-    report_path = (project_root / "docs" / "index.html").resolve()
     output_directory = (
         project_root / "docs" / "assets" / "screenshots"
     ).resolve()
-
-    if not report_path.is_file():
-        raise RuntimeError(
-            "Generated report was not found. Run generate_quality_report.py first."
-        )
 
     if not output_directory.is_relative_to(project_root):
         raise RuntimeError("Screenshot output directory is outside the project root.")
@@ -181,7 +196,18 @@ def generate_screenshots(browser_path: Path | None = None) -> None:
     with tempfile.TemporaryDirectory(prefix="montrealtransit-screenshots-") as name:
         temporary_directory = Path(name)
 
-        for screenshot in SCREENSHOTS:
+        selected = tuple(
+            screenshot for screenshot in SCREENSHOTS
+            if report == "all"
+            or (report == "static" and screenshot.report_filename == "index.html")
+            or (report == "realtime" and screenshot.report_filename != "index.html")
+        )
+        for screenshot in selected:
+            report_path = (project_root / "docs" / screenshot.report_filename).resolve()
+            if not report_path.is_file():
+                raise RuntimeError(
+                    f"Generated report was not found: {screenshot.report_filename}"
+                )
             capture_screenshot(
                 browser=browser,
                 report_path=report_path,
@@ -194,7 +220,7 @@ def generate_screenshots(browser_path: Path | None = None) -> None:
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate README screenshots from docs/index.html."
+        description="Generate README screenshots from the published HTML reports."
     )
     parser.add_argument(
         "--browser",
@@ -202,12 +228,18 @@ def parse_arguments() -> argparse.Namespace:
         default=None,
         help="Optional path to a Microsoft Edge, Chrome, or Chromium executable.",
     )
+    parser.add_argument(
+        "--report",
+        choices=("all", "static", "realtime"),
+        default="all",
+        help="Select which report screenshots to generate (default: all).",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     arguments = parse_arguments()
-    generate_screenshots(arguments.browser)
+    generate_screenshots(arguments.browser, arguments.report)
 
 
 if __name__ == "__main__":
