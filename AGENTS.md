@@ -721,5 +721,24 @@ methodology. Do not calculate headway reliability without controlled recurring
 observation coverage. Reliability tests use only synthetic facts and temporary
 DuckDB warehouses.
 
+## GTFS-Realtime reporting conventions
+
+Reporting consumes persisted reliability metrics and opens analytical source
+tables read-only; it must not recalculate historical classifications. Keep
+service-performance and coverage metrics visually distinct. Safely escape all
+GTFS-derived dashboard strings.
+
+Dashboard generation requires no network request and must not expose
+credentials, raw protobuf, licence plates, or unnecessary vehicle identifiers.
+Screenshots must come from an actual generated dashboard. Never present
+fabricated demonstration data as STM observations, and never use live STM data
+in automated reporting tests.
+
+Public static dashboards must embed presentation-oriented aggregate data, not
+complete event-level analytical datasets, and should remain small enough for
+practical repository review and GitHub Pages publication. Keep detailed facts
+in DuckDB, use deterministic bounded presentation subsets, and treat any size
+guard as project policy rather than an external service limit.
+
 For read-only audits and planning tasks, do not run shell commands, tests,
 or validation workflows unless the user explicitly requests them.

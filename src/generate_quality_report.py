@@ -605,6 +605,7 @@ def build_report(
     <header>
         <h1>Montréal Transit Reliability & Data Quality</h1>
         <p>Static GTFS quality validation report for STM operational data.</p>
+        <p><a href="gtfs_realtime_reliability.html" style="color: #ffffff;">Open the GTFS-Realtime Reliability Dashboard</a></p>
     </header>
 
     <main>
